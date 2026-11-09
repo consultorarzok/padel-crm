@@ -5,31 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Panel Cardón Pádel Club</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Panel del dueño: una barra de pestañas, una vista por tarea. Todo turno es un botón que abre su ficha completa. */
+/* Panel del club: franja superior con una cancha vista desde arriba, pestañas dentro de la franja, amarillo pelota solo para lo que pide atención. */
 :root{
-  --bg:#F2F5F3; --surface:#FFFFFF; --ink:#14201C; --muted:#52615B; --line:#D8E0DC;
-  --court:#1D5F8E; --on-court:#FFFFFF; --court-soft:#E1EDF5;
-  --ok:#1E7F4F; --ok-soft:#E0F1E7; --warn:#8F5A0E; --warn-soft:#FBEFD9; --bad:#A53333; --bad-soft:#F8E3E3;
-  --shadow:0 12px 40px rgba(10,25,20,.18);
-  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif; --f-body:'Figtree','Segoe UI',system-ui,sans-serif;
+  --bg:#EAEFEB; --surface:#FFFFFF; --ink:#0B130F; --muted:#4D5E54; --line:#D2DCD5;
+  --court:#0D6B3F; --on-court:#FFFFFF; --court-soft:#DDEFE3;
+  --ball:#E0EC3A; --on-ball:#0B130F;
+  --ok:#1E7F4F; --ok-soft:#DDF0E4; --warn:#7A5F00; --warn-soft:#F6EDB5; --bad:#B02E2E; --bad-soft:#F8E1E1;
+  --shadow:0 12px 40px rgba(8,22,15,.22);
+  --f-display:'Big Shoulders Display','Arial Narrow','Segoe UI',system-ui,sans-serif; --f-body:'Figtree','Segoe UI',system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0D1512; --surface:#151F1B; --ink:#E7EFEB; --muted:#9BAAA4; --line:#26342E;
-  --court:#62AEE0; --on-court:#07131B; --court-soft:#16303F;
-  --ok:#5CCB92; --ok-soft:#14301F; --warn:#E8B45C; --warn-soft:#33270F; --bad:#EE8A8A; --bad-soft:#3A1B1B;
-  --shadow:0 12px 40px rgba(0,0,0,.55); color-scheme:dark}}
+  --bg:#070B09; --surface:#0F1612; --ink:#EDF3EE; --muted:#9AAAA1; --line:#1F2C25;
+  --court:#DDEB3B; --on-court:#0B130F; --court-soft:#13291D;
+  --ok:#5CCB92; --ok-soft:#12301F; --warn:#E9D33B; --warn-soft:#2F2B0C; --bad:#F08A8A; --bad-soft:#3A1B1B;
+  --shadow:0 12px 40px rgba(0,0,0,.6); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0D1512; --surface:#151F1B; --ink:#E7EFEB; --muted:#9BAAA4; --line:#26342E;
-  --court:#62AEE0; --on-court:#07131B; --court-soft:#16303F;
-  --ok:#5CCB92; --ok-soft:#14301F; --warn:#E8B45C; --warn-soft:#33270F; --bad:#EE8A8A; --bad-soft:#3A1B1B;
-  --shadow:0 12px 40px rgba(0,0,0,.55); color-scheme:dark}
+  --bg:#070B09; --surface:#0F1612; --ink:#EDF3EE; --muted:#9AAAA1; --line:#1F2C25;
+  --court:#DDEB3B; --on-court:#0B130F; --court-soft:#13291D;
+  --ok:#5CCB92; --ok-soft:#12301F; --warn:#E9D33B; --warn-soft:#2F2B0C; --bad:#F08A8A; --bad-soft:#3A1B1B;
+  --shadow:0 12px 40px rgba(0,0,0,.6); color-scheme:dark}
 :root[data-theme="light"]{color-scheme:light}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
-.wrap{max-width:1120px;margin:0 auto}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);padding-inline:0;padding-block:0 48px}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px))}
 .test{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;background:var(--warn-soft);color:var(--warn);border-radius:0 0 10px 10px;padding:8px 14px;font-size:13px;font-weight:500;margin-bottom:16px}
 .test span{flex:1;min-width:220px}
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;margin-bottom:12px}
@@ -112,29 +113,97 @@ dl.det dt{color:var(--muted)}dl.det dd{margin:0;font-variant-numeric:tabular-num
 .debe{color:var(--bad);font-weight:600}.aldia{color:var(--ok);font-weight:600}
 .kpi.alerta{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
 .kpi .n b{color:var(--ink);font-weight:600}
+
+/* ===== Tema pádel ===== */
+.hero{position:relative;overflow:hidden;color:#EAF3EC;background:radial-gradient(900px 260px at 88% -20%,rgba(224,236,58,.20),transparent 60%),linear-gradient(135deg,#06281B 0%,#0B3D2A 52%,#07150E 100%);border-bottom:3px solid #E0EC3A;margin-bottom:20px}
+.hero .lines{position:absolute;inset:0;width:100%;height:100%;opacity:.11;pointer-events:none}
+.hero-in{position:relative;padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:0}
+.hero-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-top:14px}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.ball{width:52px;height:52px;flex:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45))}
+.hero h1{font:800 clamp(28px,4.4vw,40px)/1 var(--f-display);letter-spacing:.02em;text-transform:uppercase;margin:0;color:#fff}
+.hero .sub{color:#B7CBBE;margin-top:6px}
+.hero .tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hero .seg{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.06)}
+.hero .seg button{color:#C7D8CD}
+.hero .seg button[aria-pressed="true"]{background:#E0EC3A;color:#0B130F}
+.hero .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);color:#fff}
+.hero .btn:hover{border-color:#E0EC3A}
+.hero .test{display:inline-flex;margin:14px 0 0;background:rgba(224,236,58,.14);color:#EBF58A;border-radius:99px;padding:6px 14px;font-size:13px;font-weight:500}
+.hero .test span{min-width:0}
+.hero nav.tabs{border-bottom:0;margin:14px 0 0;gap:2px}
+.hero nav.tabs button{color:#B7CBBE;font:700 18px var(--f-display);letter-spacing:.03em;padding:12px 16px 11px;border-bottom:4px solid transparent}
+.hero nav.tabs button:hover{color:#fff}
+.hero nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:#E0EC3A}
+.hero button:focus-visible{outline-color:#E0EC3A}
+h2{font-size:26px;letter-spacing:.01em}
+h3{font-size:20px}
+.kpi{border-radius:14px}
+.kpi .v{font-size:36px;font-weight:800;letter-spacing:.01em}
+.kpi.alerta{background:var(--ball);border-color:var(--ball);color:var(--on-ball)}
+.kpi.alerta .l,.kpi.alerta .n{color:#3A4216}
+.kpi.alerta .n b,.kpi.alerta .v{color:var(--on-ball)}
+.day{font-size:24px;font-weight:700}
+.panel{border-radius:14px}
+.grid{grid-template-columns:60px repeat(3,minmax(150px,1fr))}
+.grid .t{font:700 18px var(--f-display);color:var(--ink);letter-spacing:.02em;padding-top:12px}
+.grid .h.ch{display:flex;align-items:center;gap:8px;color:var(--ink);padding:2px 4px 6px}
+.grid .h.ch svg{width:30px;height:20px;flex:none;color:var(--court)}
+.grid .h.ch b{font:700 15px var(--f-body)}
+.grid .h.ch span{color:var(--muted);font-weight:500}
+button.cell{border-radius:10px}
+button.cell:hover{border-color:var(--court);filter:none}
+.cell.confirmada{background:var(--court-soft);border-color:color-mix(in srgb,var(--court) 45%,transparent)}
+.cell.jugada{background:var(--bg);border-color:var(--line)}
+.cell.jugada b,.cell.jugada span{color:var(--muted)}
+.cell.pendiente{background:var(--ball);border-color:var(--ball);color:var(--on-ball)}
+.cell.pendiente span{color:#3A4216}
+.cell b{font-size:14px}
+.chip.warn{background:var(--ball);color:var(--on-ball)}
+.chip.info{background:var(--court-soft);color:var(--court)}
+.btn.pri{background:var(--court);color:var(--on-court);border-color:var(--court)}
+.who .nm,.sheet h2{font-family:var(--f-display)}
+.empty{padding:34px 12px}
+.empty::before{content:"";display:block;width:34px;height:34px;margin:0 auto 10px;background:radial-gradient(circle at 35% 30%,#F2FA6A,#E0EC3A 55%,#B8C41D);border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)}
+.warnbox{background:var(--ball);color:var(--on-ball);font-weight:500}
+.warnbox b{font-weight:700}
+.ovl{background:rgba(3,9,6,.62)}
+@media (max-width:640px){.ball{width:42px;height:42px}.hero nav.tabs button{font-size:17px;padding:11px 12px 10px}.kpi .v{font-size:32px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="test" role="status"><span id="avisoModo">Modo prueba, sin usuario ni contraseña. Este panel solo muestra datos del club de demostración.</span></div>
-  <header class="top">
-    <div><h1>Cardón Pádel Club</h1><div class="sub">San Salvador de Jujuy, 3 canchas, turnos de 90 minutos</div></div>
-    <div class="tools">
-      <div class="seg" role="group" aria-label="Origen de los datos"><button id="mReal" aria-pressed="true">Datos reales</button><button id="mDemo" aria-pressed="false">Datos de ejemplo</button></div>
-      <div class="seg" role="group" aria-label="Tema"><button id="tAuto" aria-pressed="true">Auto</button><button id="tLight" aria-pressed="false">Claro</button><button id="tDark" aria-pressed="false">Oscuro</button></div>
-      <button class="btn sm" id="refrescar">Actualizar</button>
+<header class="hero">
+  <svg class="lines" aria-hidden="true" viewBox="0 0 1200 220" preserveAspectRatio="xMidYMid slice" fill="none" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke">
+    <rect x="60" y="20" width="1080" height="180" rx="6"/><line x1="600" y1="20" x2="600" y2="200"/>
+    <line x1="395" y1="20" x2="395" y2="200"/><line x1="805" y1="20" x2="805" y2="200"/><line x1="395" y1="110" x2="805" y2="110"/>
+    <path d="M60 60 C 300 -10, 520 -10, 600 60" stroke-dasharray="3 9" stroke="#E0EC3A"/>
+  </svg>
+  <div class="wrap hero-in">
+    <div class="hero-top">
+      <div class="brand">
+        <svg class="ball" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="#E0EC3A"/><path d="M8 9C22 16 22 32 8 39M40 9C26 16 26 32 40 39" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>
+        <div><h1>Cardón Pádel Club</h1><div class="sub">San Salvador de Jujuy, 3 canchas, turnos de 90 minutos</div></div>
+      </div>
+      <div class="tools">
+        <div class="seg" role="group" aria-label="Origen de los datos"><button id="mReal" aria-pressed="true">Datos reales</button><button id="mDemo" aria-pressed="false">Datos de ejemplo</button></div>
+        <div class="seg" role="group" aria-label="Tema"><button id="tAuto" aria-pressed="true">Auto</button><button id="tLight" aria-pressed="false">Claro</button><button id="tDark" aria-pressed="false">Oscuro</button></div>
+        <button class="btn sm" id="refrescar">Actualizar</button>
+      </div>
     </div>
-  </header>
+    <div class="test" role="status"><span id="avisoModo">Modo prueba, sin usuario ni contraseña. Este panel solo muestra datos del club de demostración.</span></div>
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button role="tab" data-v="hoy">Hoy</button>
+      <button role="tab" data-v="cobros">Cobros</button>
+      <button role="tab" data-v="jugadores">Jugadores</button>
+      <button role="tab" data-v="puntos">Puntos y canjes</button>
+      <button role="tab" data-v="ofertas">Ofertas</button>
+      <button role="tab" data-v="valle">Horas valle</button>
+    </nav>
+  </div>
+</header>
+<div class="wrap main">
   <div class="sub" id="estadoDatos" style="margin:-4px 0 10px"></div>
   <div id="errBox" hidden class="err" role="alert"></div>
-  <nav class="tabs" role="tablist" aria-label="Secciones">
-    <button role="tab" data-v="hoy">Hoy</button>
-    <button role="tab" data-v="cobros">Cobros</button>
-    <button role="tab" data-v="jugadores">Jugadores</button>
-    <button role="tab" data-v="puntos">Puntos y canjes</button>
-    <button role="tab" data-v="ofertas">Ofertas</button>
-    <button role="tab" data-v="valle">Horas valle</button>
-  </nav>
 
   <section id="v-hoy">
     <div class="bar">
@@ -264,7 +333,7 @@ function demoData(){
       var fr=franja(f,st),key=f+'|'+c+'|'+st,prob={valle:.38,pico:.84,finde:.72,finde_pico:.93}[fr]*(c===3?.8:1);
       if(hsh(key)<prob){var p=jug[Math.floor(hsh(key+'p')*jug.length)],precio=Math.round(PRECIO[fr]*(c===3?.9:1)),inicio=at(f,st);
         var est=inicio<now?'confirmada':(hsh(key+'e')<.12&&(inicio-now)<2*86400000?'pendiente':'confirmada');
-        res.push({id:'demo'+res.length,tel:p.tel,cancha:c,fecha:f,inicio:st,fin:endOf(st),franja:fr,precio:precio,sena:Math.round(precio/2),estado:est,creada:addDays(inicio,-2).toISOString(),vence:new Date(now.getTime()+11*60000).toISOString(),puntos:est==='confirmada'?Math.floor(precio/2000)*(fr==='valle'?2:1):0,mp:'DEMO',cobrado:(inicio<now&&hsh(key+'c')>.12)?(precio-Math.round(precio/2)):0});
+        res.push({id:'demo'+res.length,tel:p.tel,cancha:c,fecha:f,inicio:st,fin:endOf(st),franja:fr,precio:precio,sena:Math.round(precio/2),estado:est,creada:addDays(inicio,-2).toISOString(),vence:new Date(now.getTime()+11*60000).toISOString(),puntos:est==='confirmada'?Math.floor(precio/2000)*(fr==='valle'?2:1):0,mp:'DEMO',cobrado:(inicio<now&&hsh(key+'c')>.04)?(precio-Math.round(precio/2)):0});
         if(est==='confirmada'&&k<0&&k>-9)lib.push({tel:p.tel,fecha:addDays(inicio,-2).toISOString(),tipo:'reserva',puntos:Math.floor(precio/2000)*(fr==='valle'?2:1),motivo:'Seña de reserva '+fechaCorta(f)+' '+st,ref:'demo'});}
     });}
   }
@@ -355,6 +424,8 @@ function btnCobrar(r){var d=deuda(r);return d.sd>0?'<button class="btn sm" data-
 var diaSel=ymd(new Date());
 function kpi(l,v,n){return '<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div><div class="n">'+n+'</div></div>';}
 function btnTel(t){return '<span style="display:inline-flex;gap:6px;align-items:center">'+esc(telFmt(t))+' <button class="btn sm" data-copiar="'+esc(t)+'" aria-label="Copiar teléfono">Copiar</button></span>';}
+var CAN_SVG='<svg viewBox="0 0 30 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1" y="1" width="28" height="18" rx="2"/><line x1="15" y1="1" x2="15" y2="19"/><line x1="8" y1="1" x2="8" y2="19" opacity=".55"/><line x1="22" y1="1" x2="22" y2="19" opacity=".55"/><line x1="8" y1="10" x2="22" y2="10" opacity=".55"/></svg>';
+function cabCancha(n,t){return '<div class="h ch">'+CAN_SVG+'<div><b>Cancha '+n+'</b> <span>'+t+'</span></div></div>';}
 function renderHoy(){
   $('dia').textContent=fechaLarga(diaSel)+(diaSel===ymd(new Date())?' (hoy)':'');
   var ag=agendaDe(diaSel),res=ag.filter(function(x){return x.reserva;}),rs=res.map(function(x){return x.reserva;});
@@ -369,7 +440,7 @@ function renderHoy(){
   var g={};res.forEach(function(x){var k=x.reserva.tel+'|'+x.inicio;(g[k]=g[k]||[]).push(x);});
   var dobles=Object.keys(g).filter(function(k){return g[k].length>1;}).map(function(k){var a=g[k],j0=jugadorDe(a[0].reserva.tel);return '<b>'+esc(j0.nombre||telFmt(a[0].reserva.tel))+'</b> tiene '+a.length+' canchas a las '+a[0].inicio+' ('+a.map(function(x){return 'Cancha '+x.cancha;}).join(', ')+')';});
   var ad=$('avisoDobles');ad.hidden=!dobles.length;ad.innerHTML=dobles.length?'Revisar: '+dobles.join('; ')+'. Puede ser una reserva repetida por error.':'';
-  var gr='<div class="h"></div><div class="h">Cancha 1, techada</div><div class="h">Cancha 2, techada</div><div class="h">Cancha 3, descubierta</div>';
+  var gr='<div class="h"></div>'+cabCancha(1,'techada')+cabCancha(2,'techada')+cabCancha(3,'descubierta');
   SLOTS.forEach(function(st){
     gr+='<div class="t">'+st+'</div>';
     [1,2,3].forEach(function(c){
