@@ -306,11 +306,14 @@ function fechaLarga(f){var d=parseYmd(f);return DIAS[d.getDay()]+' '+d.getDate()
 function fechaCorta(f){var d=parseYmd(f);return DIAS[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);}
 function franja(f,hm){var w=parseYmd(f).getDay();var wk=w>=1&&w<=5;return wk?(hm<'16:00'?'valle':'pico'):(hm<'17:00'?'finde':'finde_pico');}
 function hace(iso){if(!iso)return 'sin datos';var m=Math.round((Date.now()-Date.parse(iso))/60000);if(m<1)return 'recién';if(m<60)return 'hace '+m+' min';var h=Math.round(m/60);if(h<24)return 'hace '+h+' h';var d=Math.round(h/24);return d===1?'ayer':'hace '+d+' días';}
-function telFmt(t){t=String(t||'').replace(/\D/g,'');if(t.length===13&&t.indexOf('549')===0)return '+54 9 '+t.slice(3,6)+' '+t.slice(6,9)+'-'+t.slice(9);return t?'+'+t:'';}
+function telReal(t){return /^\d{10,}$/.test(String(t||''));}
+function telFmt(t){if(/^m/.test(String(t||'')))return 'Sin teléfono';t=String(t||'').replace(/\D/g,'');if(t.length===13&&t.indexOf('549')===0)return '+54 9 '+t.slice(3,6)+' '+t.slice(6,9)+'-'+t.slice(9);return t?'+'+t:'';}
 function corto(n){var p=String(n||'').trim().split(/\s+/);return p.length>1?p[0]+' '+p[1].charAt(0)+'.':(p[0]||'Sin nombre');}
 function nivelCls(n){return String(n||'Bronce').toLowerCase();}
 function safeGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function safeSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+
+function telNorm(s){var d=String(s||'').replace(/\D/g,'').replace(/^0+/,'');if(!d)return '';if(d.length===10)return '549'+d;if(d.length===12&&d.indexOf('54')===0)return '549'+d.slice(2);if(d.length===13&&d.indexOf('549')===0)return d;return null;}
 
 /* ====== Origen de los datos ====== */
 var modo=safeGet('padel-modo')==='demo'?'demo':'real';
@@ -468,9 +471,9 @@ function renderHoy(){
   $('tbDia').innerHTML=filas.length?filas.map(function(x){var j=jugadorDe(x.reserva.tel),d=deuda(x.reserva);
     return '<tr class="click" tabindex="0" data-turno="'+x.cancha+'|'+x.inicio+'"><td><b>'+x.inicio+'</b> a '+x.fin+'</td><td>Cancha '+x.cancha+'</td><td>'+esc(j.nombre||'Sin nombre')+'</td><td>'+esc(telFmt(x.reserva.tel))+'</td><td><span class="chip '+ESTADO_CHIP[x.estado]+'">'+ESTADO_TXT[x.estado]+'</span></td><td class="num">'+money(x.reserva.precio)+'</td><td class="num">'+money(pagado(x.reserva))+'</td><td class="num '+(d.total?'debe':d.prox?'muted':'aldia')+'">'+(d.total?money(d.total):d.prox?money(d.prox)+' ese día':'Al día')+'</td></tr>';}).join(''):'<tr><td colspan="8" class="empty">'+(cargado?'No hay reservas para este día. Cuando alguien reserve por WhatsApp aparece acá solo.':'Cargando…')+'</td></tr>';
 }
-$('prev').addEventListener('click',function(){diaSel=ymd(addDays(parseYmd(diaSel),-1));renderHoy();});
-$('next').addEventListener('click',function(){diaSel=ymd(addDays(parseYmd(diaSel),1));renderHoy();});
-$('hoyBtn').addEventListener('click',function(){diaSel=ymd(new Date());renderHoy();});
+$('prev').addEventListener('click',function(){diaSel=ymd(addDays(parseYmd(diaSel),-1));renderHoy();bindAcciones($('v-hoy'));});
+$('next').addEventListener('click',function(){diaSel=ymd(addDays(parseYmd(diaSel),1));renderHoy();bindAcciones($('v-hoy'));});
+$('hoyBtn').addEventListener('click',function(){diaSel=ymd(new Date());renderHoy();bindAcciones($('v-hoy'));});
 
 /* ====== Ficha del turno y del jugador ====== */
 function cerrar(){$('host').innerHTML='';if(lastFocus&&lastFocus.focus)lastFocus.focus();}
@@ -488,21 +491,72 @@ function fichaTurno(cancha,inicio){
   var ag=agendaDe(diaSel),x=ag.filter(function(y){return y.cancha===cancha&&y.inicio===inicio;})[0];
   var cab='<div class="bar" style="justify-content:space-between;align-items:flex-start;margin:0"><div><h2>'+CANCHA[cancha]+'</h2><div class="muted">'+fechaLarga(diaSel)+', de '+inicio+' a '+x.fin+'</div></div><button class="btn" id="cerrarSheet">Cerrar</button></div><img class="foto-cancha" src="assets/canchas/cancha-'+cancha+'.jpg" alt="Foto de la '+CANCHA[cancha]+'" loading="lazy">';
   if(!x.reserva){
-    abrirSheet(cab+'<div class="who"><div class="nm">Turno libre</div><div class="muted">'+FR_TXT[x.franja]+', '+money(x.precio)+(cancha===3?' (10% menos por ser descubierta)':'')+'</div></div>'+(x.pasado?'<p class="muted">Este horario ya pasó.</p>':'<button class="btn pri" data-oferta="'+cancha+'|'+inicio+'">Crear una oferta para este turno</button>')+'<p class="note">Si alguien lo reserva por WhatsApp aparece acá con su nombre y teléfono.</p>');
+    abrirSheet(cab+'<div class="who"><div class="nm">Turno libre</div><div class="muted">'+FR_TXT[x.franja]+', '+money(x.precio)+(cancha===3?' (10% menos por ser descubierta)':'')+'</div></div>'+(x.pasado?'<p class="muted">Este horario ya pasó.</p>':formReserva(cancha,inicio,x.precio)+'<div class="bar" style="margin-top:10px"><button class="btn" data-oferta="'+cancha+'|'+inicio+'">Crear una oferta para este turno</button></div>')+'<p class="note">Si alguien lo reserva por WhatsApp aparece acá con su nombre y teléfono. Lo que cargues acá también lo ve el Agente IA: ese turno deja de ofrecerse.</p>');
     return;
   }
   var r=x.reserva,j=jugadorDe(r.tel),otros=activas().filter(function(o){return o.tel===r.tel&&o.id!==r.id;}).sort(function(a,b){return a.fecha<b.fecha?1:-1;}).slice(0,6);
   var venc=x.estado==='pendiente'?' ('+Math.max(0,Math.ceil((Date.parse(r.vence)-Date.now())/60000))+' min para pagar)':'';
   abrirSheet(cab+
     '<div class="who"><div class="nm">'+esc(j.nombre||'Sin nombre')+'</div>'+
-    '<div class="tel">'+esc(telFmt(r.tel))+' <button class="btn sm" data-copiar="'+esc(r.tel)+'">Copiar</button> <a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/'+esc(r.tel)+'">Abrir WhatsApp</a></div>'+
-    '<div><span class="chip '+nivelCls(j.nivel)+'">'+esc(j.nivel)+'</span> <span class="muted">'+j.saldo+' puntos disponibles</span></div></div>'+
+    '<div class="tel">'+esc(telFmt(r.tel))+(telReal(r.tel)?' <button class="btn sm" data-copiar="'+esc(r.tel)+'">Copiar</button> <a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/'+esc(r.tel)+'">Abrir WhatsApp</a>':' <span class="muted">(cliente de mostrador)</span>')+'</div>'+
+    (telReal(r.tel)?'<div><span class="chip '+nivelCls(j.nivel)+'">'+esc(j.nivel)+'</span> <span class="muted">'+j.saldo+' puntos disponibles</span></div>':'')+'</div>'+
     '<dl class="det">'+filaDet('Estado','<span class="chip '+ESTADO_CHIP[x.estado]+'">'+ESTADO_TXT[x.estado]+'</span>'+esc(venc))+filaDet('Debe ahora',deuda(r).total?'<span class="debe">'+money(deuda(r).total)+'</span> ('+deuda(r).tipo.toLowerCase()+')':(deuda(r).prox?'Nada por ahora. Saldo de '+money(deuda(r).prox)+' ese día':'<span class="aldia">Nada, está al día</span>'))+
       filaDet('Precio del turno',money(r.precio)+' ('+FR_TXT[r.franja]+')')+filaDet('Seña (50%)',money(r.sena)+(x.estado==='pendiente'?' sin pagar':' pagada'))+
       filaDet('Saldo en el club',money(r.precio-r.sena)+(r.cobrado?' (cobrado '+money(r.cobrado)+')':''))+filaDet('Puntos por esta reserva',r.puntos?'+'+r.puntos:'se suman al pagar')+
       filaDet('Reservado',hace(r.creada))+filaDet('Código de reserva',esc(r.id))+'</dl>'+
     '<h3>Otros turnos de '+esc(corto(j.nombre)||'este jugador')+'</h3>'+(otros.length?'<table><tbody>'+otros.map(function(o){return '<tr><td>'+fechaCorta(o.fecha)+'</td><td>'+o.inicio+'</td><td>Cancha '+o.cancha+'</td></tr>';}).join('')+'</tbody></table>':'<p class="muted">No tiene otros turnos próximos.</p>')+
-    '<div class="bar" style="margin-top:12px">'+(deuda(r).sd>0?'<button class="btn pri" data-cobrar="'+esc(r.id)+'|'+deuda(r).sd+'">Marcar saldo cobrado ('+money(deuda(r).sd)+')</button>':'')+'<button class="btn" data-ficha="'+esc(r.tel)+'">Ver ficha del jugador</button></div>');
+    '<div class="bar" style="margin-top:12px">'+(x.estado==='pendiente'?'<button class="btn pri" data-pagosena="'+esc(r.id)+'|'+esc(r.tel)+'">Ya pagó la seña ('+money(r.sena)+')</button>':'')+(deuda(r).sd>0?'<button class="btn pri" data-cobrar="'+esc(r.id)+'|'+deuda(r).sd+'">Marcar saldo cobrado ('+money(deuda(r).sd)+')</button>':'')+(telReal(r.tel)?'<button class="btn" data-ficha="'+esc(r.tel)+'">Ver ficha del jugador</button>':'')+'</div>'+
+    '<div class="bar" style="margin-top:8px"><button class="btn" id="btnLiberar" data-liberar="'+esc(r.id)+'|'+esc(r.tel)+'">Liberar este turno</button><span class="muted" id="liberarAviso"></span></div>');
+}
+function formReserva(cancha,inicio,precio){
+  var S='display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:12px 0';
+  return '<h3>Reservar este turno</h3><div style="'+S+'"><label>Nombre<input type="text" id="mNombre" placeholder="Ej: Juan Pérez" maxlength="60" autocomplete="off"></label>'+
+    '<label>Teléfono (opcional)<input type="text" id="mTel" inputmode="tel" placeholder="388 4 123456" autocomplete="off"></label>'+
+    '<label>Pago<select id="mPago"><option value="no">Todavía no pagó</option><option value="sena">Pagó la seña</option><option value="todo">Pagó todo</option><option value="bloqueo">Solo bloquear (sin cliente)</option></select></label>'+
+    '<label>Precio del turno<input type="number" id="mPrecio" min="0" step="500" value="'+precio+'"></label></div>'+
+    '<label style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="mAviso"> Avisarle por WhatsApp (si cargaste su teléfono)</label>'+
+    '<p class="note" id="mMsg" style="margin:0 0 8px"></p>'+
+    '<div class="bar"><button class="btn pri" id="mGuardar" data-reservar="'+cancha+'|'+inicio+'">Reservar turno</button></div>';
+}
+/* El dueño carga, cobra o libera turnos. Todo pasa por el mismo motor que el WhatsApp, así el Agente IA lo ve ocupado. */
+function pedirClub(payload,btn,txtBtn,despues){
+  if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(payload)})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(j){D=normalizar(j);$('errBox').hidden=true;despues(true);})
+    .catch(function(){despues(false);if(btn){btn.disabled=false;btn.textContent=txtBtn;}});
+}
+function reservarManual(cancha,inicio,btn){
+  var nombre=($('mNombre').value||'').trim(),pago=$('mPago').value,tel=telNorm($('mTel').value),precio=+$('mPrecio').value||0,msg=$('mMsg');
+  if(tel===null){msg.textContent='El teléfono no parece válido. Escribilo con característica, por ejemplo 388 4 123456, o dejalo vacío.';return;}
+  if(pago!=='bloqueo'&&!nombre){msg.textContent='Escribí el nombre de quien reserva (o elegí "Solo bloquear").';return;}
+  var aviso=$('mAviso').checked&&!!tel&&pago!=='bloqueo';
+  if(modo==='demo'){
+    var id='demo'+Date.now(),pr=precio||0,se=Math.round(pr/2),telD=tel||('m'+id);
+    D.reservas.push({id:id,tel:telD,cancha:cancha,fecha:diaSel,inicio:inicio,fin:endOf(inicio),franja:franja(diaSel,inicio),precio:pago==='bloqueo'?0:pr,sena:pago==='bloqueo'?0:se,estado:pago==='no'?'pendiente':'confirmada',creada:new Date().toISOString(),vence:new Date(Date.now()+3*3600000).toISOString(),puntos:0,mp:'MOSTRADOR',cobrado:pago==='todo'?pr-se:0});
+    if(!jugadorDe(telD).nombre||!D.jugadores.some(function(j){return j.tel===telD;}))D.jugadores.push({tel:telD,nombre:pago==='bloqueo'?'Reservado por el club':nombre,nivel:'Bronce',saldo:0,hist:0,alta:new Date().toISOString()});
+    cerrarSiAbierto();pintarTodo();return;
+  }
+  var antes=activas().length;
+  pedirClub({accion:'reservar_manual',manual:{cancha:cancha,fecha:diaSel,hora_inicio:inicio,nombre:nombre,telefono:tel||'',pago:pago,precio:precio,notificar:aviso}},btn,'Reservar turno',function(ok){
+    if(!ok){msg.textContent='No se pudo guardar. Revisá la conexión y probá de nuevo.';return;}
+    var hay=activas().some(function(r){return r.cancha===cancha&&r.fecha===diaSel&&r.inicio===inicio;});
+    if(hay){cerrarSiAbierto();pintarTodo();}
+    else{msg.textContent='No quedó guardado: ese turno ya estaba ocupado o todavía se está procesando. Tocá Actualizar y revisá.';btn.disabled=false;btn.textContent='Reservar turno';pintarTodo();}
+  });
+}
+function pagoSena(id,tel,btn){
+  if(modo==='demo'){var r=D.reservas.filter(function(x){return x.id===id;})[0];if(r){r.estado='confirmada';r.mp='MOSTRADOR';}cerrarSiAbierto();pintarTodo();return;}
+  pedirClub({accion:'confirmar_pago_manual',id_reserva:id,telefono:tel},btn,'Ya pagó la seña',function(ok){
+    if(ok){cerrarSiAbierto();pintarTodo();}else{var b=$('errBox');b.hidden=false;b.textContent='No se pudo marcar la seña como pagada. Probá de nuevo.';}
+  });
+}
+function liberarTurno(id,tel,btn){
+  if(btn.dataset.seguro!=='1'){btn.dataset.seguro='1';btn.textContent='Confirmar: liberar el turno';$('liberarAviso').textContent='Se cancela la reserva y el turno queda libre para otros.';return;}
+  if(modo==='demo'){D.reservas=D.reservas.filter(function(x){return x.id!==id;});cerrarSiAbierto();pintarTodo();return;}
+  pedirClub({accion:'liberar_manual',id_reserva:id,telefono:tel},btn,'Liberar este turno',function(ok){
+    if(ok){cerrarSiAbierto();pintarTodo();}else{var b=$('errBox');b.hidden=false;b.textContent='No se pudo liberar el turno. Probá de nuevo.';}
+  });
 }
 function fichaJugador(tel){
   var j=jugadorDe(tel),res=D.reservas.filter(function(r){return r.tel===tel&&['jugada','confirmada','pendiente'].indexOf(estadoEf(r))>=0;}).sort(function(a,b){return a.fecha<b.fecha?1:-1;}).slice(0,8),
@@ -522,6 +576,9 @@ function bindAcciones(root){
   root.querySelectorAll('[data-ficha]').forEach(function(b){b.onclick=function(){fichaJugador(b.dataset.ficha);};});
   root.querySelectorAll('[data-comp]').forEach(function(b){b.onclick=function(e){e.stopPropagation();var p=b.dataset.comp.split('|');resolverComp(p[0],p[1],b);};});
   root.querySelectorAll('[data-cobrar]').forEach(function(b){b.onclick=function(e){e.stopPropagation();var p=b.dataset.cobrar.split('|');cobrar(p[0],+p[1],b);};});
+  root.querySelectorAll('[data-reservar]').forEach(function(b){b.onclick=function(){var p=b.dataset.reservar.split('|');reservarManual(+p[0],p[1],b);};});
+  root.querySelectorAll('[data-pagosena]').forEach(function(b){b.onclick=function(){var p=b.dataset.pagosena.split('|');pagoSena(p[0],p[1],b);};});
+  root.querySelectorAll('[data-liberar]').forEach(function(b){b.onclick=function(){var p=b.dataset.liberar.split('|');liberarTurno(p[0],p[1],b);};});
   root.querySelectorAll('[data-oferta]').forEach(function(b){b.onclick=function(){var p=b.dataset.oferta.split('|');cerrarSiAbierto();$('oCancha').value=p[0];$('oDia').value=diaSel;$('oHora').value=p[1];location.hash='ofertas';};});
 }
 function cerrarSiAbierto(){if($('ovl'))$('host').innerHTML='';}
