@@ -88,6 +88,9 @@ button.cell:hover{filter:brightness(.97);border-color:var(--court)}
 @media (max-width:860px){.two{grid-template-columns:minmax(0,1fr)}}
 .free{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
 .free:last-child{border-bottom:0}
+#v-puntos label,.sheet label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+#v-puntos select,.sheet select,.sheet input[type=text],.sheet input[type=number]{width:100%;max-width:100%}
+#v-puntos label[style*=flex],.sheet label[style*=flex]{display:flex}
 input[type=search],input[type=text],input[type=number],select{font:15px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
 .heat{display:grid;grid-template-columns:56px repeat(7,minmax(46px,1fr));gap:4px;min-width:500px}
 .heat .c{border-radius:6px;padding:8px 2px;text-align:center;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;background:color-mix(in srgb,var(--court) calc(var(--v)*1%),var(--surface));color:var(--ink)}
@@ -247,9 +250,21 @@ button.cell:hover{border-color:var(--court);filter:none}
   <section id="v-puntos" hidden>
     <h2>Puntos y canjes</h2><p class="lead">Todo punto queda anotado en un libro de movimientos. El saldo de cada jugador sale de ese libro.</p>
     <div class="kpis" id="kpisPuntos"></div>
+    <div class="two" style="margin-bottom:16px">
+      <div class="panel"><h2>Canjear puntos por un descuento</h2><p class="lead">Elegí el jugador y el premio. El sistema descuenta los puntos y genera un código de un solo uso.</p>
+        <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <label>Jugador<select id="cgJug"></select></label>
+          <label>Premio<select id="cgPremio"></select></label></div>
+        <label style="display:flex;gap:8px;align-items:center;margin:10px 0"><input type="checkbox" id="cgAviso" checked> Enviarle el código por WhatsApp</label>
+        <div class="bar"><button class="btn pri" id="cgGenerar">Generar código</button></div>
+        <div id="cgRes" class="note" style="font-size:14px" aria-live="polite"></div></div>
+      <div class="panel"><h2>Usar un código en el club</h2><p class="lead">Cuando alguien llega con un código, escribilo acá para entregar el premio o descontar el turno.</p>
+        <div class="bar" style="margin:0 0 10px"><input type="text" id="cuCodigo" placeholder="CPC-AB123" maxlength="9" autocomplete="off" style="text-transform:uppercase;letter-spacing:.05em"><button class="btn" id="cuBuscar">Buscar</button></div>
+        <div id="cuRes" aria-live="polite"></div></div>
+    </div>
     <div class="two">
       <div class="panel scroll"><h2>Últimos movimientos</h2><table><thead><tr><th>Cuándo</th><th>Jugador</th><th>Motivo</th><th class="num">Puntos</th></tr></thead><tbody id="tbMov"></tbody></table></div>
-      <div class="panel"><h2>Códigos de canje</h2><p class="lead">Un solo uso. El encargado lo valida en el club.</p><div id="codigos"></div></div>
+      <div class="panel"><h2>Códigos de canje</h2><p class="lead">Un solo uso, vencen a los 30 días. Tocá uno para verlo.</p><div id="codigos"></div></div>
     </div>
   </section>
 
@@ -322,7 +337,7 @@ var cargado=false;
 
 function normalizar(raw){
   var jug=(raw.jugadores||[]).filter(function(j){return j.telefono;}).map(function(j){return {tel:String(j.telefono),nombre:j.nombre||'',nivel:j.nivel||'Bronce',saldo:+j.puntos_saldo||0,hist:+j.puntos_historicos||0,alta:j.alta,ult:j.ultima_actividad,estado:j.estado};});
-  var res=(raw.reservas||[]).filter(function(r){return r.id_reserva;}).map(function(r){return {id:r.id_reserva,tel:String(r.telefono),cancha:+r.cancha,fecha:r.fecha,inicio:r.hora_inicio,fin:r.hora_fin,franja:r.franja,precio:+r.precio_total||0,sena:+r.sena||0,estado:r.estado,creada:r.creada,vence:r.vence_pago,puntos:+r.puntos_otorgados||0,mp:r.mp_payment_id||'',cobrado:+r.saldo_cobrado||0};});
+  var res=(raw.reservas||[]).filter(function(r){return r.id_reserva;}).map(function(r){return {id:r.id_reserva,tel:String(r.telefono),cancha:+r.cancha,fecha:r.fecha,inicio:r.hora_inicio,fin:r.hora_fin,franja:r.franja,precio:+r.precio_total||0,sena:+r.sena||0,estado:r.estado,creada:r.creada,vence:r.vence_pago,puntos:+r.puntos_otorgados||0,mp:r.mp_payment_id||'',pref:r.mp_preference_id||'',cobrado:+r.saldo_cobrado||0};});
   var lib=(raw.libro||[]).map(function(l){return {tel:String(l.telefono),fecha:l.fecha,tipo:l.tipo,puntos:+l.puntos||0,motivo:l.motivo||'',ref:l.referencia||''};});
   var can=(raw.canjes||[]).map(function(c){return {codigo:c.codigo,tel:String(c.telefono),premio:c.premio,puntos:+c.puntos||0,estado:c.estado,creado:c.creado,vence:c.vence};});
   var of=(raw.ofertas||[]).map(function(o){return {id:o.id_oferta,titulo:o.titulo,detalle:o.detalle,fecha:o.fecha,hora:o.hora_inicio,cancha:+o.cancha,desc:+o.descuento_pct||0,cupos:+o.cupos||0,conf:+o.confirmados||0,estado:o.estado,env:+o.enviada_a||0};});
@@ -366,7 +381,7 @@ function cargar(){
     .catch(function(e){clearTimeout(t);var b=$('errBox');b.hidden=false;b.textContent='No pude leer los datos reales ('+(e&&e.message?e.message:'sin conexión')+'). Revisá tu conexión y tocá Actualizar. Mientras tanto podés mirar los datos de ejemplo.';if(!cargado){D=normalizar({});pintarTodo();}});
 }
 $('refrescar').addEventListener('click',cargar);
-setInterval(function(){if(modo==='real'&&!document.hidden&&!document.querySelector('.ovl'))cargar();},20000);
+setInterval(function(){if(modo==='real'&&!document.hidden&&!document.querySelector('.ovl')&&!/INPUT|SELECT/.test((document.activeElement||{}).tagName||''))cargar();},20000);
 
 /* ====== Selectores de modo y tema ====== */
 function pintarModo(){
@@ -633,8 +648,83 @@ function renderPuntos(){
   $('kpisPuntos').innerHTML=kpi('Puntos en circulación',circ.toLocaleString('es-AR'),'saldo de todos los jugadores')+kpi('Puntos emitidos',emit.toLocaleString('es-AR'),'en el libro de movimientos')+kpi('Puntos canjeados',usados.toLocaleString('es-AR'),emit?Math.round(usados/emit*100)+'% de lo emitido':'todavía ninguno')+kpi('Jugadores',String(D.jugadores.length),D.canjes.length+' códigos de canje');
   var movs=D.libro.slice().sort(function(a,b){return a.fecha<b.fecha?1:-1;}).slice(0,15);
   $('tbMov').innerHTML=movs.length?movs.map(function(m){var j=jugadorDe(m.tel);return '<tr><td>'+hace(m.fecha)+'</td><td>'+esc(corto(j.nombre)||telFmt(m.tel))+'</td><td>'+esc(m.motivo)+'</td><td class="num" style="color:var(--'+(m.puntos<0?'bad':'ok')+');font-weight:600">'+(m.puntos>0?'+':'')+m.puntos+'</td></tr>';}).join(''):'<tr><td colspan="4" class="empty">Todavía no hay movimientos de puntos.</td></tr>';
-  $('codigos').innerHTML=D.canjes.length?D.canjes.slice().sort(function(a,b){return a.creado<b.creado?1:-1;}).slice(0,8).map(function(c){var j=jugadorDe(c.tel);return '<div class="free"><span><b style="letter-spacing:.04em">'+esc(c.codigo)+'</b><br><span class="muted">'+esc(c.premio)+', '+esc(corto(j.nombre))+'</span></span><span class="chip '+(c.estado==='usado'?'ok':c.estado==='generado'?'info':'bad')+'">'+esc(c.estado)+'</span></div>';}).join(''):'<p class="muted">Nadie canjeó puntos todavía. Se canjea escribiendo 3 en el WhatsApp del club.</p>';
+  $('codigos').innerHTML=D.canjes.length?D.canjes.slice().sort(function(a,b){return a.creado<b.creado?1:-1;}).slice(0,8).map(function(c){var j=jugadorDe(c.tel),e=estadoCodigo(c);return '<div class="free"><span><b style="letter-spacing:.04em">'+esc(c.codigo)+'</b><br><span class="muted">'+esc(c.premio)+', '+esc(corto(j.nombre))+'</span></span><span style="display:inline-flex;gap:8px;align-items:center"><span class="chip '+(e==='usado'?'ok':e==='generado'?'info':'bad')+'">'+esc(e)+'</span><button class="btn sm" data-codigo="'+esc(c.codigo)+'">Abrir</button></span></div>';}).join(''):'<p class="muted">Nadie canjeó puntos todavía. Generá uno desde acá o se canjea escribiendo 3 en el WhatsApp del club.</p>';
+  pintarCanje();
 }
+
+/* ====== Canje de puntos ====== */
+var PREMIOS=[{n:1,t:'Alquiler de paleta gratis',p:40,k:'item'},{n:2,t:'Tubo de pelotas',p:60,k:'item'},{n:3,t:'20% de descuento en un turno valle',p:80,k:'pct',pct:20},{n:4,t:'Turno valle gratis (90 min)',p:240,k:'gratis'}];
+function premioDe(t){return PREMIOS.filter(function(x){return x.t===t;})[0]||null;}
+function estadoCodigo(c){return (c.estado==='generado'&&c.vence&&Date.parse(c.vence)<Date.now())?'vencido':c.estado;}
+function pintarCanje(){
+  var sj=$('cgJug'),sp=$('cgPremio');if(!sj)return;
+  var vj=sj.value,vp=sp.value;
+  sj.innerHTML=D.jugadores.filter(function(j){return telReal(j.tel)&&(!j.estado||j.estado==='activo');}).sort(function(a,b){return b.saldo-a.saldo;}).map(function(j){return '<option value="'+esc(j.tel)+'">'+esc(j.nombre||telFmt(j.tel))+' ('+j.saldo+' puntos)</option>';}).join('')||'<option value="">Todavía no hay jugadores</option>';
+  sp.innerHTML=PREMIOS.map(function(x){return '<option value="'+x.n+'">'+esc(x.t)+' ('+x.p+' puntos)</option>';}).join('');
+  if(vj)sj.value=vj;if(vp)sp.value=vp;
+  if($('cuCodigo').value&&!$('cuRes').dataset.manual)buscarCodigo(true);
+}
+function msgCanje(el,t,ok){el.innerHTML='<span style="color:var(--'+(ok?'ok':'bad')+')">'+t+'</span>';}
+function generarCodigo(btn){
+  var tel=$('cgJug').value,n=+$('cgPremio').value,pr=PREMIOS.filter(function(x){return x.n===n;})[0],j=jugadorDe(tel),res=$('cgRes');
+  if(!tel){msgCanje(res,'Elegí un jugador.',false);return;}
+  if(j.saldo<pr.p){msgCanje(res,esc(corto(j.nombre))+' tiene '+j.saldo+' puntos y el premio cuesta '+pr.p+'. Le faltan '+(pr.p-j.saldo)+'.',false);return;}
+  function mostrar(cod){res.innerHTML='<div class="who"><div class="muted">Código para '+esc(corto(j.nombre))+' ('+esc(pr.t)+')</div><div class="nm" style="font-size:28px;letter-spacing:.08em">'+esc(cod)+'</div><div class="muted">Vale 30 días. '+(modo==='demo'||!$('cgAviso').checked?'':'Si el WhatsApp está habilitado, ya se lo mandamos.')+'</div></div>';}
+  if(modo==='demo'){var cod='CPC-'+Math.random().toString(36).slice(2,7).toUpperCase();j.saldo-=pr.p;D.canjes.push({codigo:cod,tel:tel,premio:pr.t,puntos:pr.p,estado:'generado',creado:new Date().toISOString(),vence:new Date(Date.now()+30*86400000).toISOString()});pintarTodo();mostrar(cod);return;}
+  var antes=D.canjes.length;
+  pedirClub({accion:'generar_canje',telefono:tel,n:n,notificar:$('cgAviso').checked},btn,'Generar código',function(ok){
+    if(btn){btn.disabled=false;btn.textContent='Generar código';}
+    if(!ok){msgCanje(res,'No se pudo generar el código. Probá de nuevo.',false);return;}
+    var nuevo=D.canjes.filter(function(x){return x.tel===tel&&x.premio===pr.t&&x.estado==='generado';}).sort(function(a,b){return a.creado<b.creado?1:-1;})[0];
+    pintarTodo();
+    if(D.canjes.length>antes&&nuevo)mostrar(nuevo.codigo);else msgCanje(res,'No se generó el código. Revisá que el jugador tenga los puntos y tocá Actualizar.',false);
+  });
+}
+function buscarCodigo(silencioso){
+  var cod=($('cuCodigo').value||'').trim().toUpperCase(),res=$('cuRes');res.dataset.manual='';
+  if(!cod){res.innerHTML='';return;}
+  var c=D.canjes.filter(function(x){return x.codigo===cod;})[0];
+  if(!c){res.innerHTML='<p class="muted" style="color:var(--bad)">No existe el código '+esc(cod)+'. Revisá que esté bien escrito.</p>';return;}
+  var j=jugadorDe(c.tel),e=estadoCodigo(c),pr=premioDe(c.premio),vivo=(e==='generado');
+  var h='<div class="who"><div class="nm">'+esc(c.codigo)+' <span class="chip '+(e==='usado'?'ok':e==='generado'?'info':'bad')+'">'+esc(e)+'</span></div><div>'+esc(c.premio)+'</div><div class="muted">De '+esc(j.nombre||telFmt(c.tel))+'. Vence el '+esc(fechaCorta(String(c.vence).slice(0,10)))+'.</div></div>';
+  if(!vivo)h+='<p class="note">'+(e==='usado'?'Este código ya se usó.':e==='anulado'?'Este código fue anulado y los puntos se devolvieron.':'Este código venció.')+'</p>';
+  else{
+    var bar='';
+    if(pr&&pr.k==='item')bar+='<button class="btn pri" id="cuUsar" data-uso="'+esc(c.codigo)+'|'+esc(c.tel)+'|">Entregar y marcar usado</button>';
+    else{
+      var hoyS=ymd(new Date()),opts=activas().filter(function(r){return r.fecha>=hoyS&&at(r.fecha,r.inicio)>new Date()&&(r.franja==='valle'||r.franja==='finde')&&!/^CANJE:/.test(r.pref||'');}).sort(function(a,b){return (a.fecha+a.inicio)<(b.fecha+b.inicio)?-1:1;});
+      if(opts.length)bar+='<label>Aplicar al turno<select id="cuTurno">'+opts.map(function(r){var base=r.precio,nuevo=pr&&pr.k==='gratis'?0:Math.round(base*(100-(pr?pr.pct:0))/100);return '<option value="'+esc(r.id)+'">'+fechaCorta(r.fecha)+' '+r.inicio+', Cancha '+r.cancha+', '+esc(corto(jugadorDe(r.tel).nombre)||telFmt(r.tel))+': '+money(base)+' pasa a '+money(nuevo)+'</option>';}).join('')+'</select></label><div class="bar"><button class="btn pri" id="cuAplicar" data-aplicar="'+esc(c.codigo)+'|'+esc(c.tel)+'">Descontar de ese turno</button></div>';
+      else bar+='<p class="note">No hay turnos de valle reservados para descontar. Cargá primero el turno en la agenda y volvé acá.</p>';
+      bar+='<div class="bar"><button class="btn" data-uso="'+esc(c.codigo)+'|'+esc(c.tel)+'|">Marcar usado sin descontar</button></div>';
+    }
+    bar+='<div class="bar"><button class="btn" id="cuAnular" data-anular="'+esc(c.codigo)+'|'+esc(c.tel)+'">Anular código (devuelve '+c.puntos+' puntos)</button><span class="muted" id="cuAviso"></span></div>';
+    h+=bar+'<p class="note">El saldo del turno se cobra normal en el club. Si la seña ya estaba paga, no se devuelve sola.</p>';
+  }
+  res.innerHTML=h;
+  res.querySelectorAll('[data-uso]').forEach(function(b){b.onclick=function(){var p=b.dataset.uso.split('|');accionCodigo('usar_canje',{telefono:p[1],codigo:p[0]},b,'Código usado.');};});
+  res.querySelectorAll('[data-aplicar]').forEach(function(b){b.onclick=function(){var p=b.dataset.aplicar.split('|');accionCodigo('usar_canje',{telefono:p[1],codigo:p[0],id_reserva:$('cuTurno').value},b,'Descuento aplicado al turno.');};});
+  res.querySelectorAll('[data-anular]').forEach(function(b){b.onclick=function(){var p=b.dataset.anular.split('|');
+    if(b.dataset.seguro!=='1'){b.dataset.seguro='1';b.textContent='Confirmar: anular el código';$('cuAviso').textContent='No se puede deshacer.';return;}
+    accionCodigo('anular_canje',{telefono:p[1],codigo:p[0]},b,'Código anulado. Puntos devueltos.');};});
+}
+function accionCodigo(accion,datos,btn,okTxt){
+  var res=$('cuRes'),cod=datos.codigo;
+  if(modo==='demo'){var c=D.canjes.filter(function(x){return x.codigo===cod;})[0],j=jugadorDe(datos.telefono);
+    if(accion==='anular_canje'){c.estado='anulado';j.saldo+=c.puntos;}else{c.estado='usado';
+      if(datos.id_reserva){var r=D.reservas.filter(function(x){return x.id===datos.id_reserva;})[0],pr=premioDe(c.premio);if(r){r.precio=pr.k==='gratis'?0:Math.round(r.precio*(100-pr.pct)/100);if(r.estado==='pendiente')r.sena=Math.round(r.precio/2);r.pref='CANJE:'+cod;}}}
+    pintarTodo();res.dataset.manual='1';buscarCodigo();res.insertAdjacentHTML('afterbegin','<p style="color:var(--ok);font-weight:600">'+okTxt+'</p>');return;}
+  pedirClub(Object.assign({accion:accion},datos),btn,btn.textContent,function(ok){
+    pintarTodo();
+    var c=D.canjes.filter(function(x){return x.codigo===cod;})[0],esperado=accion==='anular_canje'?'anulado':'usado';
+    res.dataset.manual='1';buscarCodigo();
+    res.insertAdjacentHTML('afterbegin',(ok&&c&&c.estado===esperado)?'<p style="color:var(--ok);font-weight:600">'+okTxt+'</p>':'<p style="color:var(--bad);font-weight:600">No se pudo completar. Tocá Actualizar y revisá el estado del código.</p>');
+  });
+}
+$('cgGenerar').addEventListener('click',function(){generarCodigo(this);});
+$('cuBuscar').addEventListener('click',function(){buscarCodigo();});
+$('cuCodigo').addEventListener('keydown',function(e){if(e.key==='Enter')buscarCodigo();});
+$('cuCodigo').addEventListener('input',function(){$('cuRes').dataset.manual='';});
+$('codigos').addEventListener('click',function(e){var b=e.target.closest('[data-codigo]');if(b){$('cuCodigo').value=b.dataset.codigo;buscarCodigo();$('cuCodigo').scrollIntoView({block:'center'});}});
 
 /* ====== Ofertas ====== */
 var ofertasLocales=[];
