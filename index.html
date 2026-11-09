@@ -167,6 +167,7 @@ button.cell:hover{border-color:var(--court);filter:none}
 .who .nm,.sheet h2{font-family:var(--f-display)}
 .empty{padding:34px 12px}
 .empty::before{content:"";display:block;width:68px;height:68px;margin:0 auto 12px;background:url(assets/pelota.jpg) center/cover,#E0EC3A;border-radius:50%;box-shadow:0 6px 16px rgba(0,0,0,.28)}
+.foto-cancha{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:12px;margin:12px 0 4px;background:var(--line)}
 .warnbox{background:var(--ball);color:var(--on-ball);font-weight:500}
 .warnbox b{font-weight:700}
 .ovl{background:rgba(3,9,6,.62)}
@@ -478,7 +479,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&$('ovl'))ce
 function filaDet(k,v){return '<dt>'+k+'</dt><dd>'+v+'</dd>';}
 function fichaTurno(cancha,inicio){
   var ag=agendaDe(diaSel),x=ag.filter(function(y){return y.cancha===cancha&&y.inicio===inicio;})[0];
-  var cab='<div class="bar" style="justify-content:space-between;align-items:flex-start;margin:0"><div><h2>'+CANCHA[cancha]+'</h2><div class="muted">'+fechaLarga(diaSel)+', de '+inicio+' a '+x.fin+'</div></div><button class="btn" id="cerrarSheet">Cerrar</button></div>';
+  var cab='<div class="bar" style="justify-content:space-between;align-items:flex-start;margin:0"><div><h2>'+CANCHA[cancha]+'</h2><div class="muted">'+fechaLarga(diaSel)+', de '+inicio+' a '+x.fin+'</div></div><button class="btn" id="cerrarSheet">Cerrar</button></div><img class="foto-cancha" src="assets/canchas/cancha-'+cancha+'.jpg" alt="Foto de la '+CANCHA[cancha]+'" loading="lazy">';
   if(!x.reserva){
     abrirSheet(cab+'<div class="who"><div class="nm">Turno libre</div><div class="muted">'+FR_TXT[x.franja]+', '+money(x.precio)+(cancha===3?' (10% menos por ser descubierta)':'')+'</div></div>'+(x.pasado?'<p class="muted">Este horario ya pasó.</p>':'<button class="btn pri" data-oferta="'+cancha+'|'+inicio+'">Crear una oferta para este turno</button>')+'<p class="note">Si alguien lo reserva por WhatsApp aparece acá con su nombre y teléfono.</p>');
     return;
