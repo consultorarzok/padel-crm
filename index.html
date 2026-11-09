@@ -108,6 +108,10 @@ dl.det dt{color:var(--muted)}dl.det dd{margin:0;font-variant-numeric:tabular-num
 .muted{color:var(--muted)}.note{font-size:12px;color:var(--muted);margin-top:10px}
 .empty{text-align:center;padding:28px 12px;color:var(--muted)}
 .err{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:14px}
+.warnbox{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+.debe{color:var(--bad);font-weight:600}.aldia{color:var(--ok);font-weight:600}
+.kpi.alerta{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.kpi .n b{color:var(--ink);font-weight:600}
 </style>
 </head>
 <body>
@@ -125,6 +129,7 @@ dl.det dt{color:var(--muted)}dl.det dd{margin:0;font-variant-numeric:tabular-num
   <div id="errBox" hidden class="err" role="alert"></div>
   <nav class="tabs" role="tablist" aria-label="Secciones">
     <button role="tab" data-v="hoy">Hoy</button>
+    <button role="tab" data-v="cobros">Cobros</button>
     <button role="tab" data-v="jugadores">Jugadores</button>
     <button role="tab" data-v="puntos">Puntos y canjes</button>
     <button role="tab" data-v="ofertas">Ofertas</button>
@@ -138,19 +143,30 @@ dl.det dt{color:var(--muted)}dl.det dd{margin:0;font-variant-numeric:tabular-num
       <button class="btn" id="next" aria-label="Día siguiente">&rarr;</button>
       <button class="btn" id="hoyBtn">Ir a hoy</button>
     </div>
+    <div id="avisoDobles" class="warnbox" role="alert" hidden></div>
     <div class="kpis" id="kpisHoy"></div>
     <div class="two">
       <div class="panel scroll"><h2>Agenda por cancha</h2><p class="lead">Tocá cualquier turno para ver quién lo reservó y su teléfono.</p><div class="grid" id="agenda"></div></div>
       <div class="panel"><h2>Horas libres para mover</h2><p class="lead">Turnos de valle que todavía no pasaron. Una oferta puede llenarlos.</p><div id="libres"></div></div>
     </div>
     <div class="panel scroll"><h2>Reservas del día</h2><p class="lead">Todos los turnos con su jugador y teléfono.</p>
-      <table><thead><tr><th>Hora</th><th>Cancha</th><th>Jugador</th><th>Teléfono</th><th>Estado</th><th class="num">Precio</th><th class="num">Seña</th></tr></thead><tbody id="tbDia"></tbody></table></div>
+      <table><thead><tr><th>Hora</th><th>Cancha</th><th>Jugador</th><th>Teléfono</th><th>Estado</th><th class="num">Precio</th><th class="num">Pagó</th><th class="num">Debe</th></tr></thead><tbody id="tbDia"></tbody></table></div>
+  </section>
+
+  <section id="v-cobros" hidden>
+    <h2>Cobros</h2><p class="lead">Lo que se debe ahora y lo que se cobrará en los próximos turnos. La seña se paga por WhatsApp; el saldo se cobra en el club y lo marcás acá.</p>
+    <div class="kpis" id="kpisCobros"></div>
+    <div style="display:grid;gap:16px">
+      <div class="panel scroll"><h2>Lo que se debe ahora</h2><table><thead><tr><th>Día</th><th>Hora</th><th>Cancha</th><th>Jugador</th><th>Teléfono</th><th>Qué debe</th><th class="num">Monto</th><th></th></tr></thead><tbody id="tbCobros"></tbody></table></div>
+      <div class="panel scroll"><h2>Saldos de próximos turnos</h2><p class="lead">Todavía no corresponde cobrarlos: se pagan en el club el día del turno.</p><table><thead><tr><th>Día</th><th>Hora</th><th>Cancha</th><th>Jugador</th><th>Teléfono</th><th class="num">Saldo</th></tr></thead><tbody id="tbProx"></tbody></table></div>
+      <div class="panel"><h2>Quién debe, por jugador</h2><p class="lead">Cuánto debe cada uno ahora.</p><div id="porJugador"></div></div>
+    </div>
   </section>
 
   <section id="v-jugadores" hidden>
     <h2>Jugadores</h2><p class="lead">Quienes se registraron escribiendo al WhatsApp del club. Tocá una fila para ver su historial.</p>
     <div class="bar"><input type="search" id="buscar" placeholder="Buscar por nombre o teléfono" aria-label="Buscar jugador" style="flex:1;min-width:200px"><select id="fNivel" aria-label="Filtrar por nivel"><option value="">Todos los niveles</option><option>Bronce</option><option>Plata</option><option>Oro</option></select></div>
-    <div class="panel scroll"><table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Nivel</th><th class="num">Puntos</th><th class="num">Reservas</th><th>Última actividad</th></tr></thead><tbody id="tbJug"></tbody></table></div>
+    <div class="panel scroll"><table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Nivel</th><th class="num">Puntos</th><th class="num">Reservas</th><th class="num">Debe</th><th>Última actividad</th></tr></thead><tbody id="tbJug"></tbody></table></div>
   </section>
 
   <section id="v-puntos" hidden>
@@ -228,7 +244,7 @@ var cargado=false;
 
 function normalizar(raw){
   var jug=(raw.jugadores||[]).filter(function(j){return j.telefono;}).map(function(j){return {tel:String(j.telefono),nombre:j.nombre||'',nivel:j.nivel||'Bronce',saldo:+j.puntos_saldo||0,hist:+j.puntos_historicos||0,alta:j.alta,ult:j.ultima_actividad,estado:j.estado};});
-  var res=(raw.reservas||[]).filter(function(r){return r.id_reserva;}).map(function(r){return {id:r.id_reserva,tel:String(r.telefono),cancha:+r.cancha,fecha:r.fecha,inicio:r.hora_inicio,fin:r.hora_fin,franja:r.franja,precio:+r.precio_total||0,sena:+r.sena||0,estado:r.estado,creada:r.creada,vence:r.vence_pago,puntos:+r.puntos_otorgados||0,mp:r.mp_payment_id||''};});
+  var res=(raw.reservas||[]).filter(function(r){return r.id_reserva;}).map(function(r){return {id:r.id_reserva,tel:String(r.telefono),cancha:+r.cancha,fecha:r.fecha,inicio:r.hora_inicio,fin:r.hora_fin,franja:r.franja,precio:+r.precio_total||0,sena:+r.sena||0,estado:r.estado,creada:r.creada,vence:r.vence_pago,puntos:+r.puntos_otorgados||0,mp:r.mp_payment_id||'',cobrado:+r.saldo_cobrado||0};});
   var lib=(raw.libro||[]).map(function(l){return {tel:String(l.telefono),fecha:l.fecha,tipo:l.tipo,puntos:+l.puntos||0,motivo:l.motivo||'',ref:l.referencia||''};});
   var can=(raw.canjes||[]).map(function(c){return {codigo:c.codigo,tel:String(c.telefono),premio:c.premio,puntos:+c.puntos||0,estado:c.estado,creado:c.creado,vence:c.vence};});
   var of=(raw.ofertas||[]).map(function(o){return {id:o.id_oferta,titulo:o.titulo,detalle:o.detalle,fecha:o.fecha,hora:o.hora_inicio,cancha:+o.cancha,desc:+o.descuento_pct||0,cupos:+o.cupos||0,conf:+o.confirmados||0,estado:o.estado,env:+o.enviada_a||0};});
@@ -248,7 +264,7 @@ function demoData(){
       var fr=franja(f,st),key=f+'|'+c+'|'+st,prob={valle:.38,pico:.84,finde:.72,finde_pico:.93}[fr]*(c===3?.8:1);
       if(hsh(key)<prob){var p=jug[Math.floor(hsh(key+'p')*jug.length)],precio=Math.round(PRECIO[fr]*(c===3?.9:1)),inicio=at(f,st);
         var est=inicio<now?'confirmada':(hsh(key+'e')<.12&&(inicio-now)<2*86400000?'pendiente':'confirmada');
-        res.push({id:'demo'+res.length,tel:p.tel,cancha:c,fecha:f,inicio:st,fin:endOf(st),franja:fr,precio:precio,sena:Math.round(precio/2),estado:est,creada:addDays(inicio,-2).toISOString(),vence:new Date(now.getTime()+11*60000).toISOString(),puntos:est==='confirmada'?Math.floor(precio/2000)*(fr==='valle'?2:1):0,mp:'DEMO'});
+        res.push({id:'demo'+res.length,tel:p.tel,cancha:c,fecha:f,inicio:st,fin:endOf(st),franja:fr,precio:precio,sena:Math.round(precio/2),estado:est,creada:addDays(inicio,-2).toISOString(),vence:new Date(now.getTime()+11*60000).toISOString(),puntos:est==='confirmada'?Math.floor(precio/2000)*(fr==='valle'?2:1):0,mp:'DEMO',cobrado:(inicio<now&&hsh(key+'c')>.12)?(precio-Math.round(precio/2)):0});
         if(est==='confirmada'&&k<0&&k>-9)lib.push({tel:p.tel,fecha:addDays(inicio,-2).toISOString(),tipo:'reserva',puntos:Math.floor(precio/2000)*(fr==='valle'?2:1),motivo:'Seña de reserva '+fechaCorta(f)+' '+st,ref:'demo'});}
     });}
   }
@@ -286,7 +302,7 @@ $('tDark').addEventListener('click',function(){safeSet('padel-tema','dark');apli
 aplicarTema(safeGet('padel-tema')||'auto');
 
 /* ====== Navegación ====== */
-var VISTAS=['hoy','jugadores','puntos','ofertas','valle'];
+var VISTAS=['hoy','cobros','jugadores','puntos','ofertas','valle'];
 function vista(){var v=(location.hash||'').replace('#','');return VISTAS.indexOf(v)>=0?v:'hoy';}
 function mostrar(){var v=vista();VISTAS.forEach(function(x){$('v-'+x).hidden=(x!==v);});
   document.querySelectorAll('nav.tabs button').forEach(function(b){b.setAttribute('aria-selected',b.dataset.v===v?'true':'false');});}
@@ -312,36 +328,64 @@ function agendaDe(f){
 var ESTADO_TXT={libre:'Libre',jugada:'Jugada',confirmada:'Confirmada',pendiente:'Falta pagar la seña'};
 var ESTADO_CHIP={jugada:'ok',confirmada:'info',pendiente:'warn'};
 
+/* ====== Deudas ====== */
+function deuda(r){
+  var e=estadoEf(r),hoyS=ymd(new Date());
+  if(e==='pendiente')return {sena:r.sena,sd:0,prox:0,total:r.sena,tipo:'Seña sin pagar'};
+  if(e==='confirmada'||e==='jugada'){
+    var sd=Math.max(0,r.precio-r.sena-(r.cobrado||0)),ahora=r.fecha<=hoyS;
+    return {sena:0,sd:sd,prox:ahora?0:sd,total:ahora?sd:0,tipo:!sd?'':(ahora?(e==='jugada'?'Saldo sin cobrar':'Saldo de hoy'):'Saldo a cobrar ese día')};
+  }
+  return {sena:0,sd:0,prox:0,total:0,tipo:''};
+}
+function pagado(r){var e=estadoEf(r);return (e==='confirmada'||e==='jugada')?r.sena+(r.cobrado||0):0;}
+function deudaLista(rs,conProx){var m={};rs.forEach(function(r){var dd=deuda(r),d=dd.total+(conProx?dd.prox:0);if(d>0){var j=jugadorDe(r.tel);m[r.tel]=m[r.tel]||{nombre:j.nombre,monto:0,tel:r.tel,turnos:0};m[r.tel].monto+=d;m[r.tel].turnos++;}});return Object.keys(m).map(function(k){return m[k];}).sort(function(a,b){return b.monto-a.monto;});}
+function quien(l){if(!l.length)return 'Nadie debe nada';var t=l.slice(0,2).map(function(x){return '<b>'+esc(corto(x.nombre)||'Sin nombre')+'</b> '+money(x.monto);}).join(', ');return t+(l.length>2?' y '+(l.length-2)+' más':'');}
+function cobrar(id,monto,btn){
+  if(modo==='demo'){var r=D.reservas.filter(function(x){return x.id===id;})[0];if(r)r.cobrado=r.precio-r.sena;pintarTodo();return;}
+  if(btn){btn.disabled=true;btn.textContent='Registrando…';}
+  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({accion:'cobrar_saldo',id_reserva:id,monto:monto})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(j){D=normalizar(j);$('errBox').hidden=true;cerrarSiAbierto();pintarTodo();})
+    .catch(function(){var b=$('errBox');b.hidden=false;b.textContent='No se pudo registrar el cobro. Probá de nuevo.';if(btn){btn.disabled=false;btn.textContent='Marcar cobrado';}});
+}
+function btnCobrar(r){var d=deuda(r);return d.sd>0?'<button class="btn sm" data-cobrar="'+esc(r.id)+'|'+d.sd+'">Marcar cobrado</button>':(d.sena>0?'<span class="muted">Espera el pago</span>':'<span class="aldia">Al día</span>');}
+
 /* ====== Hoy ====== */
 var diaSel=ymd(new Date());
 function kpi(l,v,n){return '<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div><div class="n">'+n+'</div></div>';}
 function btnTel(t){return '<span style="display:inline-flex;gap:6px;align-items:center">'+esc(telFmt(t))+' <button class="btn sm" data-copiar="'+esc(t)+'" aria-label="Copiar teléfono">Copiar</button></span>';}
 function renderHoy(){
   $('dia').textContent=fechaLarga(diaSel)+(diaSel===ymd(new Date())?' (hoy)':'');
-  var ag=agendaDe(diaSel),res=ag.filter(function(x){return x.reserva;});
-  var cobradas=res.filter(function(x){return x.estado==='jugada'||x.estado==='confirmada';}).reduce(function(a,x){return a+x.reserva.sena;},0);
-  var aCobrar=res.filter(function(x){return x.estado==='confirmada'||x.estado==='jugada';}).reduce(function(a,x){return a+(x.reserva.precio-x.reserva.sena);},0);
-  var pend=res.filter(function(x){return x.estado==='pendiente';}).length;
+  var ag=agendaDe(diaSel),res=ag.filter(function(x){return x.reserva;}),rs=res.map(function(x){return x.reserva;});
+  var cobradas=rs.reduce(function(a,r){return a+pagado(r);},0);
+  var dl=deudaLista(rs,true),deb=dl.reduce(function(a,x){return a+x.monto;},0);
+  var pend=rs.filter(function(r){return estadoEf(r)==='pendiente';}),dp=deudaLista(pend);
   $('kpisHoy').innerHTML=kpi('Turnos reservados',res.length+' de '+ag.length,Math.round(res.length/ag.length*100)+'% de ocupación')+
-    kpi('Señas cobradas',money(cobradas),modo==='demo'?'datos de ejemplo':'pago simulado, no es plata real')+
-    kpi('Saldo a cobrar en el club',money(aCobrar),'lo que falta de los turnos del día')+
-    kpi('Falta pagar la seña',String(pend),pend?'se liberan a los 15 minutos':'ninguno');
-  var g='<div class="h"></div><div class="h">Cancha 1, techada</div><div class="h">Cancha 2, techada</div><div class="h">Cancha 3, descubierta</div>';
+    kpi('Cobrado',money(cobradas),modo==='demo'?'datos de ejemplo':'señas y saldos, pago simulado')+
+    '<div class="kpi'+(deb?' alerta':'')+'"><div class="l">Falta cobrar de este día</div><div class="v">'+money(deb)+'</div><div class="n">'+quien(dl)+'</div></div>'+
+    '<div class="kpi'+(pend.length?' alerta':'')+'"><div class="l">Seña sin pagar</div><div class="v">'+pend.length+'</div><div class="n">'+(pend.length?quien(dp)+'. Se libera a los 15 minutos':'Ninguna')+'</div></div>';
+  // aviso: mismo jugador con dos canchas a la misma hora
+  var g={};res.forEach(function(x){var k=x.reserva.tel+'|'+x.inicio;(g[k]=g[k]||[]).push(x);});
+  var dobles=Object.keys(g).filter(function(k){return g[k].length>1;}).map(function(k){var a=g[k],j0=jugadorDe(a[0].reserva.tel);return '<b>'+esc(j0.nombre||telFmt(a[0].reserva.tel))+'</b> tiene '+a.length+' canchas a las '+a[0].inicio+' ('+a.map(function(x){return 'Cancha '+x.cancha;}).join(', ')+')';});
+  var ad=$('avisoDobles');ad.hidden=!dobles.length;ad.innerHTML=dobles.length?'Revisar: '+dobles.join('; ')+'. Puede ser una reserva repetida por error.':'';
+  var gr='<div class="h"></div><div class="h">Cancha 1, techada</div><div class="h">Cancha 2, techada</div><div class="h">Cancha 3, descubierta</div>';
   SLOTS.forEach(function(st){
-    g+='<div class="t">'+st+'</div>';
+    gr+='<div class="t">'+st+'</div>';
     [1,2,3].forEach(function(c){
       var x=ag.filter(function(y){return y.cancha===c&&y.inicio===st;})[0],id=c+'|'+st;
-      if(!x.reserva)g+='<button class="cell libre" data-turno="'+id+'" aria-label="Cancha '+c+', '+st+', libre"><b>Libre</b><span>'+money(x.precio)+', '+FR_TXT[x.franja]+'</span></button>';
-      else{var j=jugadorDe(x.reserva.tel);g+='<button class="cell '+x.estado+'" data-turno="'+id+'" aria-label="Cancha '+c+', '+st+', '+esc(j.nombre||x.reserva.tel)+', '+ESTADO_TXT[x.estado]+'"><b>'+esc(corto(j.nombre)||telFmt(x.reserva.tel))+'</b><span>'+ESTADO_TXT[x.estado]+', '+esc(telFmt(x.reserva.tel).slice(-8))+'</span></button>';}
+      if(!x.reserva)gr+='<button class="cell libre" data-turno="'+id+'" aria-label="Cancha '+c+', '+st+', libre"><b>Libre</b><span>'+money(x.precio)+', '+FR_TXT[x.franja]+'</span></button>';
+      else{var j=jugadorDe(x.reserva.tel),d=deuda(x.reserva);
+        gr+='<button class="cell '+x.estado+'" data-turno="'+id+'" aria-label="Cancha '+c+', '+st+', '+esc(j.nombre||x.reserva.tel)+', '+ESTADO_TXT[x.estado]+(d.total?', debe '+money(d.total):d.prox?', saldo '+money(d.prox)+' ese día':', al día')+'"><b>'+esc(corto(j.nombre)||telFmt(x.reserva.tel))+'</b><span>'+(d.total?'Debe '+money(d.total):d.prox?'Saldo '+money(d.prox)+' ese día':ESTADO_TXT[x.estado]+', al día')+'</span></button>';}
     });
   });
-  $('agenda').innerHTML=g;
+  $('agenda').innerHTML=gr;
   var porHora={};ag.filter(function(x){return !x.reserva&&!x.pasado&&(x.franja==='valle'||x.franja==='finde');}).forEach(function(x){(porHora[x.inicio]=porHora[x.inicio]||[]).push(x);});
   var libres=Object.keys(porHora).sort().slice(0,6);
   $('libres').innerHTML=libres.length?libres.map(function(h){var l=porHora[h];return '<div class="free"><span><b>'+h+'</b> a '+endOf(h)+' <span class="muted">'+l.length+(l.length===1?' cancha libre':' canchas libres')+', '+FR_TXT[l[0].franja]+'</span></span><button class="btn sm" data-oferta="'+l[0].cancha+'|'+h+'">Crear oferta</button></div>';}).join(''):'<p class="muted">No quedan horas libres de valle para este día.</p>';
   var filas=res.slice().sort(function(a,b){return a.inicio<b.inicio?-1:a.inicio>b.inicio?1:a.cancha-b.cancha;});
-  $('tbDia').innerHTML=filas.length?filas.map(function(x){var j=jugadorDe(x.reserva.tel);
-    return '<tr class="click" tabindex="0" data-turno="'+x.cancha+'|'+x.inicio+'"><td><b>'+x.inicio+'</b> a '+x.fin+'</td><td>Cancha '+x.cancha+'</td><td>'+esc(j.nombre||'Sin nombre')+'</td><td>'+esc(telFmt(x.reserva.tel))+'</td><td><span class="chip '+ESTADO_CHIP[x.estado]+'">'+ESTADO_TXT[x.estado]+'</span></td><td class="num">'+money(x.reserva.precio)+'</td><td class="num">'+money(x.reserva.sena)+'</td></tr>';}).join(''):'<tr><td colspan="7" class="empty">'+(cargado?'No hay reservas para este día. Cuando alguien reserve por WhatsApp aparece acá solo.':'Cargando…')+'</td></tr>';
+  $('tbDia').innerHTML=filas.length?filas.map(function(x){var j=jugadorDe(x.reserva.tel),d=deuda(x.reserva);
+    return '<tr class="click" tabindex="0" data-turno="'+x.cancha+'|'+x.inicio+'"><td><b>'+x.inicio+'</b> a '+x.fin+'</td><td>Cancha '+x.cancha+'</td><td>'+esc(j.nombre||'Sin nombre')+'</td><td>'+esc(telFmt(x.reserva.tel))+'</td><td><span class="chip '+ESTADO_CHIP[x.estado]+'">'+ESTADO_TXT[x.estado]+'</span></td><td class="num">'+money(x.reserva.precio)+'</td><td class="num">'+money(pagado(x.reserva))+'</td><td class="num '+(d.total?'debe':d.prox?'muted':'aldia')+'">'+(d.total?money(d.total):d.prox?money(d.prox)+' ese día':'Al día')+'</td></tr>';}).join(''):'<tr><td colspan="8" class="empty">'+(cargado?'No hay reservas para este día. Cuando alguien reserve por WhatsApp aparece acá solo.':'Cargando…')+'</td></tr>';
 }
 $('prev').addEventListener('click',function(){diaSel=ymd(addDays(parseYmd(diaSel),-1));renderHoy();});
 $('next').addEventListener('click',function(){diaSel=ymd(addDays(parseYmd(diaSel),1));renderHoy();});
@@ -372,12 +416,12 @@ function fichaTurno(cancha,inicio){
     '<div class="who"><div class="nm">'+esc(j.nombre||'Sin nombre')+'</div>'+
     '<div class="tel">'+esc(telFmt(r.tel))+' <button class="btn sm" data-copiar="'+esc(r.tel)+'">Copiar</button> <a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/'+esc(r.tel)+'">Abrir WhatsApp</a></div>'+
     '<div><span class="chip '+nivelCls(j.nivel)+'">'+esc(j.nivel)+'</span> <span class="muted">'+j.saldo+' puntos disponibles</span></div></div>'+
-    '<dl class="det">'+filaDet('Estado','<span class="chip '+ESTADO_CHIP[x.estado]+'">'+ESTADO_TXT[x.estado]+'</span>'+esc(venc))+
+    '<dl class="det">'+filaDet('Estado','<span class="chip '+ESTADO_CHIP[x.estado]+'">'+ESTADO_TXT[x.estado]+'</span>'+esc(venc))+filaDet('Debe ahora',deuda(r).total?'<span class="debe">'+money(deuda(r).total)+'</span> ('+deuda(r).tipo.toLowerCase()+')':(deuda(r).prox?'Nada por ahora. Saldo de '+money(deuda(r).prox)+' ese día':'<span class="aldia">Nada, está al día</span>'))+
       filaDet('Precio del turno',money(r.precio)+' ('+FR_TXT[r.franja]+')')+filaDet('Seña (50%)',money(r.sena)+(x.estado==='pendiente'?' sin pagar':' pagada'))+
-      filaDet('Saldo en el club',money(r.precio-r.sena))+filaDet('Puntos por esta reserva',r.puntos?'+'+r.puntos:'se suman al pagar')+
+      filaDet('Saldo en el club',money(r.precio-r.sena)+(r.cobrado?' (cobrado '+money(r.cobrado)+')':''))+filaDet('Puntos por esta reserva',r.puntos?'+'+r.puntos:'se suman al pagar')+
       filaDet('Reservado',hace(r.creada))+filaDet('Código de reserva',esc(r.id))+'</dl>'+
     '<h3>Otros turnos de '+esc(corto(j.nombre)||'este jugador')+'</h3>'+(otros.length?'<table><tbody>'+otros.map(function(o){return '<tr><td>'+fechaCorta(o.fecha)+'</td><td>'+o.inicio+'</td><td>Cancha '+o.cancha+'</td></tr>';}).join('')+'</tbody></table>':'<p class="muted">No tiene otros turnos próximos.</p>')+
-    '<button class="btn" style="margin-top:12px" data-ficha="'+esc(r.tel)+'">Ver ficha completa del jugador</button>');
+    '<div class="bar" style="margin-top:12px">'+(deuda(r).sd>0?'<button class="btn pri" data-cobrar="'+esc(r.id)+'|'+deuda(r).sd+'">Marcar saldo cobrado ('+money(deuda(r).sd)+')</button>':'')+'<button class="btn" data-ficha="'+esc(r.tel)+'">Ver ficha del jugador</button></div>');
 }
 function fichaJugador(tel){
   var j=jugadorDe(tel),res=D.reservas.filter(function(r){return r.tel===tel&&['jugada','confirmada','pendiente'].indexOf(estadoEf(r))>=0;}).sort(function(a,b){return a.fecha<b.fecha?1:-1;}).slice(0,8),
@@ -395,16 +439,33 @@ function bindAcciones(root){
   root.querySelectorAll('[data-turno]').forEach(function(b){b.onclick=function(){var p=b.dataset.turno.split('|');fichaTurno(+p[0],p[1]);};
     b.onkeydown=function(e){if(e.key==='Enter'&&b.tagName==='TR'){var p=b.dataset.turno.split('|');fichaTurno(+p[0],p[1]);}};});
   root.querySelectorAll('[data-ficha]').forEach(function(b){b.onclick=function(){fichaJugador(b.dataset.ficha);};});
+  root.querySelectorAll('[data-cobrar]').forEach(function(b){b.onclick=function(e){e.stopPropagation();var p=b.dataset.cobrar.split('|');cobrar(p[0],+p[1],b);};});
   root.querySelectorAll('[data-oferta]').forEach(function(b){b.onclick=function(){var p=b.dataset.oferta.split('|');cerrarSiAbierto();$('oCancha').value=p[0];$('oDia').value=diaSel;$('oHora').value=p[1];location.hash='ofertas';};});
 }
 function cerrarSiAbierto(){if($('ovl'))$('host').innerHTML='';}
 
+/* ====== Cobros ====== */
+function renderCobros(){
+  var todas=D.reservas.slice().sort(function(a,b){return (a.fecha+a.inicio)<(b.fecha+b.inicio)?-1:1;});
+  var ahora=todas.filter(function(r){return deuda(r).total>0;}),prox=todas.filter(function(r){return deuda(r).prox>0;});
+  var sena=ahora.reduce(function(a,r){return a+deuda(r).sena;},0),sald=ahora.reduce(function(a,r){return a+deuda(r).sd;},0),pr=prox.reduce(function(a,r){return a+deuda(r).prox;},0),dl=deudaLista(ahora);
+  $('kpisCobros').innerHTML='<div class="kpi'+(sena+sald?' alerta':'')+'"><div class="l">Debe ahora</div><div class="v">'+money(sena+sald)+'</div><div class="n">'+quien(dl)+'</div></div>'+
+    kpi('Señas sin pagar',money(sena),(function(n){return n+(n===1?' turno esperando el pago':' turnos esperando el pago');})(ahora.filter(function(r){return deuda(r).sena>0;}).length))+
+    kpi('Saldos de hoy o ya jugados',money(sald),(function(n){return n+(n===1?' turno para cobrar en el club':' turnos para cobrar en el club');})(ahora.filter(function(r){return deuda(r).sd>0;}).length))+
+    kpi('Saldos de próximos días',money(pr),prox.length+(prox.length===1?' turno, se cobra':' turnos, se cobran')+' el día del turno');
+  $('tbCobros').innerHTML=ahora.length?ahora.map(function(r){var j=jugadorDe(r.tel),d=deuda(r);
+    return '<tr><td>'+fechaCorta(r.fecha)+'</td><td>'+r.inicio+'</td><td>Cancha '+r.cancha+'</td><td><b>'+esc(j.nombre||'Sin nombre')+'</b></td><td>'+esc(telFmt(r.tel))+'</td><td><span class="chip '+(d.sena?'warn':'bad')+'">'+d.tipo+'</span></td><td class="num debe">'+money(d.total)+'</td><td>'+btnCobrar(r)+'</td></tr>';}).join(''):'<tr><td colspan="8" class="empty">'+(cargado?'Nadie debe nada ahora. Cuando falte pagar una seña o cobrar un saldo, aparece acá.':'Cargando…')+'</td></tr>';
+  $('tbProx').innerHTML=prox.length?prox.slice(0,12).map(function(r){var j=jugadorDe(r.tel),d=deuda(r);
+    return '<tr><td>'+fechaCorta(r.fecha)+'</td><td>'+r.inicio+'</td><td>Cancha '+r.cancha+'</td><td><b>'+esc(j.nombre||'Sin nombre')+'</b></td><td>'+esc(telFmt(r.tel))+'</td><td class="num">'+money(d.prox)+'</td></tr>';}).join('')+(prox.length>12?'<tr><td colspan="6" class="muted">y '+(prox.length-12)+' turnos más</td></tr>':''):'<tr><td colspan="6" class="empty">No hay saldos pendientes de próximos días.</td></tr>';
+  $('porJugador').innerHTML=dl.length?dl.map(function(x){return '<div class="free"><span><b>'+esc(x.nombre||'Sin nombre')+'</b><br><span class="muted">'+esc(telFmt(x.tel))+', '+x.turnos+(x.turnos===1?' turno':' turnos')+'</span></span><span class="debe">'+money(x.monto)+'</span></div>';}).join(''):'<p class="muted">Todos al día.</p>';
+}
+
 /* ====== Jugadores ====== */
 function renderJug(){
   var q=$('buscar').value.toLowerCase().trim(),nv=$('fNivel').value,qd=q.replace(/\D/g,'');
-  var cuenta={};D.reservas.forEach(function(r){var e=estadoEf(r);if(e==='jugada'||e==='confirmada')cuenta[r.tel]=(cuenta[r.tel]||0)+1;});
+  var cuenta={},debeJ={};D.reservas.forEach(function(r){var e=estadoEf(r);if(e==='jugada'||e==='confirmada')cuenta[r.tel]=(cuenta[r.tel]||0)+1;debeJ[r.tel]=(debeJ[r.tel]||0)+deuda(r).total;});
   var l=D.jugadores.filter(function(p){return (!nv||p.nivel===nv)&&(!q||(p.nombre||'').toLowerCase().indexOf(q)>=0||(qd&&p.tel.indexOf(qd)>=0));}).sort(function(a,b){return b.hist-a.hist;});
-  $('tbJug').innerHTML=l.length?l.map(function(p){return '<tr class="click" tabindex="0" data-j="'+esc(p.tel)+'"><td><b>'+esc(p.nombre||'Sin nombre')+'</b></td><td>'+esc(telFmt(p.tel))+'</td><td><span class="chip '+nivelCls(p.nivel)+'">'+esc(p.nivel)+'</span></td><td class="num">'+p.saldo+'</td><td class="num">'+(cuenta[p.tel]||0)+'</td><td>'+hace(p.ult)+'</td></tr>';}).join(''):'<tr><td colspan="6" class="empty">'+(D.jugadores.length?'Ningún jugador coincide con la búsqueda.':'Todavía no hay jugadores. Se registran solos cuando escriben al WhatsApp del club.')+'</td></tr>';
+  $('tbJug').innerHTML=l.length?l.map(function(p){return '<tr class="click" tabindex="0" data-j="'+esc(p.tel)+'"><td><b>'+esc(p.nombre||'Sin nombre')+'</b></td><td>'+esc(telFmt(p.tel))+'</td><td><span class="chip '+nivelCls(p.nivel)+'">'+esc(p.nivel)+'</span></td><td class="num">'+p.saldo+'</td><td class="num">'+(cuenta[p.tel]||0)+'</td><td class="num '+(debeJ[p.tel]?'debe':'aldia')+'">'+(debeJ[p.tel]?money(debeJ[p.tel]):'Al día')+'</td><td>'+hace(p.ult)+'</td></tr>';}).join(''):'<tr><td colspan="7" class="empty">'+(D.jugadores.length?'Ningún jugador coincide con la búsqueda.':'Todavía no hay jugadores. Se registran solos cuando escriben al WhatsApp del club.')+'</td></tr>';
   document.querySelectorAll('#tbJug tr.click').forEach(function(r){var f=function(){fichaJugador(r.dataset.j);};r.onclick=f;r.onkeydown=function(e){if(e.key==='Enter')f();};});
 }
 $('buscar').addEventListener('input',renderJug);$('fNivel').addEventListener('change',renderJug);
@@ -464,7 +525,7 @@ function renderValle(){
 /* ====== Arranque ====== */
 function pintarTodo(){
   $('estadoDatos').textContent=cargado?('Datos '+(modo==='demo'?'de ejemplo':'reales')+', actualizados '+hace(D.generado)+'.'):'Cargando datos…';
-  renderHoy();renderJug();renderPuntos();renderOfertas();renderValle();bindAcciones(document);mostrar();
+  renderHoy();renderCobros();renderJug();renderPuntos();renderOfertas();renderValle();bindAcciones(document);mostrar();
 }
 pintarModo();pintarTodo();cargar();
 })();
