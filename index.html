@@ -115,8 +115,10 @@ dl.det dt{color:var(--muted)}dl.det dd{margin:0;font-variant-numeric:tabular-num
 .kpi .n b{color:var(--ink);font-weight:600}
 
 /* ===== Tema pádel ===== */
-.hero{position:relative;overflow:hidden;color:#EAF3EC;background:radial-gradient(900px 260px at 88% -20%,rgba(224,236,58,.20),transparent 60%),linear-gradient(135deg,#06281B 0%,#0B3D2A 52%,#07150E 100%);border-bottom:3px solid #E0EC3A;margin-bottom:20px}
-.hero .lines{position:absolute;inset:0;width:100%;height:100%;opacity:.11;pointer-events:none}
+.band{margin:-14px -14px 14px;padding:16px 16px 14px;border-radius:14px 14px 0 0;color:#fff;background:linear-gradient(rgba(4,20,13,.80),rgba(4,20,13,.80)),url(assets/cancha.jpg) center/cover,#0B3D2A}
+.band h2{color:#fff;margin:0 0 4px}.band .lead{color:#C9DACF;margin:0}
+.hero{position:relative;overflow:hidden;color:#EAF3EC;background:linear-gradient(90deg,rgba(3,12,8,.94) 0%,rgba(3,12,8,.82) 38%,rgba(3,12,8,.35) 70%,rgba(3,12,8,.15) 100%),url(assets/hero.jpg) 60% 62%/cover,#07150E;border-bottom:3px solid #E0EC3A;margin-bottom:20px}
+.hero .lines{display:none}
 .hero-in{position:relative;padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:0}
 .hero-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-top:14px}
 .brand{display:flex;align-items:center;gap:14px;min-width:0}
@@ -164,7 +166,7 @@ button.cell:hover{border-color:var(--court);filter:none}
 .btn.pri{background:var(--court);color:var(--on-court);border-color:var(--court)}
 .who .nm,.sheet h2{font-family:var(--f-display)}
 .empty{padding:34px 12px}
-.empty::before{content:"";display:block;width:34px;height:34px;margin:0 auto 10px;background:radial-gradient(circle at 35% 30%,#F2FA6A,#E0EC3A 55%,#B8C41D);border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)}
+.empty::before{content:"";display:block;width:68px;height:68px;margin:0 auto 12px;background:url(assets/pelota.jpg) center/cover,#E0EC3A;border-radius:50%;box-shadow:0 6px 16px rgba(0,0,0,.28)}
 .warnbox{background:var(--ball);color:var(--on-ball);font-weight:500}
 .warnbox b{font-weight:700}
 .ovl{background:rgba(3,9,6,.62)}
@@ -215,7 +217,7 @@ button.cell:hover{border-color:var(--court);filter:none}
     <div id="avisoDobles" class="warnbox" role="alert" hidden></div>
     <div class="kpis" id="kpisHoy"></div>
     <div class="two">
-      <div class="panel scroll"><h2>Agenda por cancha</h2><p class="lead">Tocá cualquier turno para ver quién lo reservó y su teléfono.</p><div class="grid" id="agenda"></div></div>
+      <div class="panel scroll"><div class="band"><h2>Agenda por cancha</h2><p class="lead">Tocá cualquier turno para ver quién lo reservó y su teléfono.</p></div><div class="grid" id="agenda"></div></div>
       <div class="panel"><h2>Horas libres para mover</h2><p class="lead">Turnos de valle que todavía no pasaron. Una oferta puede llenarlos.</p><div id="libres"></div></div>
     </div>
     <div class="panel scroll"><h2>Reservas del día</h2><p class="lead">Todos los turnos con su jugador y teléfono.</p>
