@@ -216,6 +216,7 @@ button.cell:hover{border-color:var(--court);filter:none}
       <button class="btn" id="hoyBtn">Ir a hoy</button>
     </div>
     <div id="avisoDobles" class="warnbox" role="alert" hidden></div>
+    <div id="avisoComp" class="warnbox" role="alert" hidden></div>
     <div class="kpis" id="kpisHoy"></div>
     <div class="two">
       <div class="panel scroll"><div class="band"><h2>Agenda por cancha</h2><p class="lead">Tocá cualquier turno para ver quién lo reservó y su teléfono.</p></div><div class="grid" id="agenda"></div></div>
@@ -230,6 +231,8 @@ button.cell:hover{border-color:var(--court);filter:none}
     <div class="kpis" id="kpisCobros"></div>
     <div style="display:grid;gap:16px">
       <div class="panel scroll"><h2>Lo que se debe ahora</h2><table><thead><tr><th>Día</th><th>Hora</th><th>Cancha</th><th>Jugador</th><th>Teléfono</th><th>Qué debe</th><th class="num">Monto</th><th></th></tr></thead><tbody id="tbCobros"></tbody></table></div>
+      <div class="panel scroll"><h2>Comprobantes recibidos</h2><p class="lead">Transferencias que mandaron los jugadores por WhatsApp. El sistema lee el comprobante y lo confirma solo si coincide el monto, el alias, la fecha y el número de operación. Si algo no coincide, queda en revisión para que lo apruebes o rechaces.</p>
+        <table><thead><tr><th>Recibido</th><th>Jugador</th><th class="num">Monto</th><th>Operación</th><th>Origen</th><th>Estado</th><th>Detalle</th><th>Archivo</th><th></th></tr></thead><tbody id="tbComp"></tbody></table></div>
       <div class="panel scroll"><h2>Saldos de próximos turnos</h2><p class="lead">Todavía no corresponde cobrarlos: se pagan en el club el día del turno.</p><table><thead><tr><th>Día</th><th>Hora</th><th>Cancha</th><th>Jugador</th><th>Teléfono</th><th class="num">Saldo</th></tr></thead><tbody id="tbProx"></tbody></table></div>
       <div class="panel"><h2>Quién debe, por jugador</h2><p class="lead">Cuánto debe cada uno ahora.</p><div id="porJugador"></div></div>
     </div>
@@ -311,7 +314,7 @@ function safeSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 
 /* ====== Origen de los datos ====== */
 var modo=safeGet('padel-modo')==='demo'?'demo':'real';
-var D={jugadores:[],reservas:[],libro:[],canjes:[],ofertas:[],generado:null};
+var D={jugadores:[],reservas:[],libro:[],canjes:[],ofertas:[],comprobantes:[],generado:null};
 var cargado=false;
 
 function normalizar(raw){
@@ -320,7 +323,8 @@ function normalizar(raw){
   var lib=(raw.libro||[]).map(function(l){return {tel:String(l.telefono),fecha:l.fecha,tipo:l.tipo,puntos:+l.puntos||0,motivo:l.motivo||'',ref:l.referencia||''};});
   var can=(raw.canjes||[]).map(function(c){return {codigo:c.codigo,tel:String(c.telefono),premio:c.premio,puntos:+c.puntos||0,estado:c.estado,creado:c.creado,vence:c.vence};});
   var of=(raw.ofertas||[]).map(function(o){return {id:o.id_oferta,titulo:o.titulo,detalle:o.detalle,fecha:o.fecha,hora:o.hora_inicio,cancha:+o.cancha,desc:+o.descuento_pct||0,cupos:+o.cupos||0,conf:+o.confirmados||0,estado:o.estado,env:+o.enviada_a||0};});
-  return {jugadores:jug,reservas:res,libro:lib,canjes:can,ofertas:of,generado:raw.generado||new Date().toISOString()};
+  var cmp=(raw.comprobantes||[]).filter(function(c){return c.id_comprobante;}).map(function(c){return {id:c.id_comprobante,tel:String(c.telefono),reserva:c.id_reserva,creado:c.creado,monto:+c.monto||0,alias:c.alias_destino||'',titular:c.titular_destino||'',banco:c.banco_origen||'',nombre:c.nombre_origen||'',op:c.nro_operacion||'',fecha:c.fecha_pago||'',estado:c.estado,motivo:c.motivo||'',url:c.media_url||''};});
+  return {jugadores:jug,reservas:res,libro:lib,canjes:can,ofertas:of,comprobantes:cmp,generado:raw.generado||new Date().toISOString()};
 }
 
 /* ---- datos de ejemplo (semilla fija, solo para mostrar el panel lleno) ---- */
@@ -345,7 +349,9 @@ function demoData(){
     can.push({codigo:code,tel:pl.tel,premio:pr[0],puntos:pr[1],estado:hsh('ce'+j)<.4?'usado':hsh('ce'+j)<.8?'generado':'vencido',creado:addDays(now,-j*2).toISOString(),vence:addDays(now,30-j*2).toISOString()});
     lib.push({tel:pl.tel,fecha:addDays(now,-j*2).toISOString(),tipo:'canje',puntos:-pr[1],motivo:'Canje: '+pr[0],ref:code});}
   jug.slice(0,6).forEach(function(p,i){lib.push({tel:p.tel,fecha:p.alta,tipo:'bienvenida',puntos:20,motivo:'Puntos de bienvenida',ref:'alta'});});
-  return {jugadores:jug,reservas:res,libro:lib,canjes:can,ofertas:[{id:'o1',titulo:'Valle del martes',detalle:'',fecha:ymd(addDays(now,2)),hora:'09:30',cancha:2,desc:50,cupos:8,conf:5,estado:'Activa',env:32}],generado:now.toISOString()};
+  var pend=res.filter(function(r){return r.estado==='pendiente';}),cmpD=[];
+  if(res.length>8){var r1=res[res.length-3],r2=res[res.length-9];cmpD.push({id:'cdemo1',tel:r1.tel,reserva:r1.id,creado:addDays(now,0).toISOString(),monto:r1.sena,alias:'padel.cardon.jujuy',titular:'Cardón Pádel Club',banco:'Brubank',nombre:'Ejemplo Uno',op:'8800123456',fecha:ymd(now),estado:'aprobado',motivo:'',url:''});cmpD.push({id:'cdemo2',tel:r2.tel,reserva:r2.id,creado:addDays(now,0).toISOString(),monto:r2.sena,alias:'',titular:'',banco:'Banco Ejemplo',nombre:'Ejemplo Dos',op:'',fecha:ymd(now),estado:'revision',motivo:'No se ve el alias o titular de destino',url:''});}
+  return {jugadores:jug,reservas:res,libro:lib,canjes:can,comprobantes:cmpD,ofertas:[{id:'o1',titulo:'Valle del martes',detalle:'',fecha:ymd(addDays(now,2)),hora:'09:30',cancha:2,desc:50,cupos:8,conf:5,estado:'Activa',env:32}],generado:now.toISOString()};
 }
 
 function cargar(){
@@ -443,6 +449,7 @@ function renderHoy(){
   var g={};res.forEach(function(x){var k=x.reserva.tel+'|'+x.inicio;(g[k]=g[k]||[]).push(x);});
   var dobles=Object.keys(g).filter(function(k){return g[k].length>1;}).map(function(k){var a=g[k],j0=jugadorDe(a[0].reserva.tel);return '<b>'+esc(j0.nombre||telFmt(a[0].reserva.tel))+'</b> tiene '+a.length+' canchas a las '+a[0].inicio+' ('+a.map(function(x){return 'Cancha '+x.cancha;}).join(', ')+')';});
   var ad=$('avisoDobles');ad.hidden=!dobles.length;ad.innerHTML=dobles.length?'Revisar: '+dobles.join('; ')+'. Puede ser una reserva repetida por error.':'';
+  var rv=D.comprobantes.filter(function(c){return c.estado==='revision';}),ac=$('avisoComp');ac.hidden=!rv.length;ac.innerHTML=rv.length?'Hay <b>'+rv.length+(rv.length===1?' comprobante':' comprobantes')+'</b> de transferencia esperando tu revisión. <a href="#cobros" style="color:inherit;font-weight:600">Ver en Cobros</a>':'';
   var gr='<div class="h"></div>'+cabCancha(1,'techada')+cabCancha(2,'techada')+cabCancha(3,'descubierta');
   SLOTS.forEach(function(st){
     gr+='<div class="t">'+st+'</div>';
@@ -513,10 +520,28 @@ function bindAcciones(root){
   root.querySelectorAll('[data-turno]').forEach(function(b){b.onclick=function(){var p=b.dataset.turno.split('|');fichaTurno(+p[0],p[1]);};
     b.onkeydown=function(e){if(e.key==='Enter'&&b.tagName==='TR'){var p=b.dataset.turno.split('|');fichaTurno(+p[0],p[1]);}};});
   root.querySelectorAll('[data-ficha]').forEach(function(b){b.onclick=function(){fichaJugador(b.dataset.ficha);};});
+  root.querySelectorAll('[data-comp]').forEach(function(b){b.onclick=function(e){e.stopPropagation();var p=b.dataset.comp.split('|');resolverComp(p[0],p[1],b);};});
   root.querySelectorAll('[data-cobrar]').forEach(function(b){b.onclick=function(e){e.stopPropagation();var p=b.dataset.cobrar.split('|');cobrar(p[0],+p[1],b);};});
   root.querySelectorAll('[data-oferta]').forEach(function(b){b.onclick=function(){var p=b.dataset.oferta.split('|');cerrarSiAbierto();$('oCancha').value=p[0];$('oDia').value=diaSel;$('oHora').value=p[1];location.hash='ofertas';};});
 }
 function cerrarSiAbierto(){if($('ovl'))$('host').innerHTML='';}
+
+/* ====== Comprobantes ====== */
+var COMP_CHIP={aprobado:'ok',revision:'warn',rechazado:'bad'},COMP_TXT={aprobado:'Aprobado',revision:'En revisión',rechazado:'Rechazado'};
+function resolverComp(accion,id,btn){
+  var c=D.comprobantes.filter(function(x){return x.id===id;})[0];if(!c)return;
+  if(modo==='demo'){c.estado=accion==='aprobar'?'aprobado':'rechazado';c.motivo=accion==='aprobar'?'Aprobado por el encargado':'Rechazado por el encargado';pintarTodo();return;}
+  if(btn){btn.disabled=true;btn.textContent='Procesando…';}
+  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({accion:accion+'_comprobante',id_comprobante:c.id,id_reserva:c.reserva,telefono:c.tel,op:c.op})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(j){D=normalizar(j);$('errBox').hidden=true;pintarTodo();})
+    .catch(function(){var b=$('errBox');b.hidden=false;b.textContent='No se pudo procesar el comprobante. Probá de nuevo.';if(btn){btn.disabled=false;btn.textContent=accion==='aprobar'?'Aprobar':'Rechazar';}});
+}
+function renderComprobantes(){
+  var l=D.comprobantes.slice().sort(function(a,b){return a.creado<b.creado?1:-1;});
+  $('tbComp').innerHTML=l.length?l.map(function(c){var j=jugadorDe(c.tel);
+    return '<tr><td>'+hace(c.creado)+'</td><td><b>'+esc(j.nombre||'Sin nombre')+'</b><br><span class="muted">'+esc(telFmt(c.tel))+'</span></td><td class="num">'+(c.monto?money(c.monto):'sin leer')+'</td><td>'+esc(c.op||'sin leer')+'</td><td>'+esc((c.nombre||'')+(c.banco?', '+c.banco:''))+'</td><td><span class="chip '+(COMP_CHIP[c.estado]||'info')+'">'+(COMP_TXT[c.estado]||esc(c.estado))+'</span></td><td style="white-space:normal;min-width:180px">'+esc(c.motivo||'Todo coincide')+'</td><td>'+(c.url?'<a href="'+esc(c.url)+'" target="_blank" rel="noopener">Ver imagen</a>':'<span class="muted">-</span>')+'</td><td>'+(c.estado==='revision'?'<div class="bar" style="margin:0;flex-wrap:nowrap"><button class="btn sm pri" data-comp="aprobar|'+esc(c.id)+'">Aprobar</button><button class="btn sm" data-comp="rechazar|'+esc(c.id)+'">Rechazar</button></div>':'')+'</td></tr>';}).join(''):'<tr><td colspan="9" class="empty">'+(cargado?'Todavía no llegó ningún comprobante. Cuando un jugador mande una captura o un PDF de su transferencia, aparece acá.':'Cargando…')+'</td></tr>';
+}
 
 /* ====== Cobros ====== */
 function renderCobros(){
@@ -526,7 +551,8 @@ function renderCobros(){
   $('kpisCobros').innerHTML='<div class="kpi'+(sena+sald?' alerta':'')+'"><div class="l">Debe ahora</div><div class="v">'+money(sena+sald)+'</div><div class="n">'+quien(dl)+'</div></div>'+
     kpi('Señas sin pagar',money(sena),(function(n){return n+(n===1?' turno esperando el pago':' turnos esperando el pago');})(ahora.filter(function(r){return deuda(r).sena>0;}).length))+
     kpi('Saldos de hoy o ya jugados',money(sald),(function(n){return n+(n===1?' turno para cobrar en el club':' turnos para cobrar en el club');})(ahora.filter(function(r){return deuda(r).sd>0;}).length))+
-    kpi('Saldos de próximos días',money(pr),prox.length+(prox.length===1?' turno, se cobra':' turnos, se cobran')+' el día del turno');
+    kpi('Saldos de próximos días',money(pr),prox.length+(prox.length===1?' turno, se cobra':' turnos, se cobran')+' el día del turno')+
+    (function(){var rv=D.comprobantes.filter(function(c){return c.estado==='revision';}).length;return '<div class="kpi'+(rv?' alerta':'')+'"><div class="l">Comprobantes para revisar</div><div class="v">'+rv+'</div><div class="n">'+(rv?'esperan tu aprobación':'ninguno pendiente')+'</div></div>';})();
   $('tbCobros').innerHTML=ahora.length?ahora.map(function(r){var j=jugadorDe(r.tel),d=deuda(r);
     return '<tr><td>'+fechaCorta(r.fecha)+'</td><td>'+r.inicio+'</td><td>Cancha '+r.cancha+'</td><td><b>'+esc(j.nombre||'Sin nombre')+'</b></td><td>'+esc(telFmt(r.tel))+'</td><td><span class="chip '+(d.sena?'warn':'bad')+'">'+d.tipo+'</span></td><td class="num debe">'+money(d.total)+'</td><td>'+btnCobrar(r)+'</td></tr>';}).join(''):'<tr><td colspan="8" class="empty">'+(cargado?'Nadie debe nada ahora. Cuando falte pagar una seña o cobrar un saldo, aparece acá.':'Cargando…')+'</td></tr>';
   $('tbProx').innerHTML=prox.length?prox.slice(0,12).map(function(r){var j=jugadorDe(r.tel),d=deuda(r);
@@ -599,7 +625,7 @@ function renderValle(){
 /* ====== Arranque ====== */
 function pintarTodo(){
   $('estadoDatos').textContent=cargado?('Datos '+(modo==='demo'?'de ejemplo':'reales')+', actualizados '+hace(D.generado)+'.'):'Cargando datos…';
-  renderHoy();renderCobros();renderJug();renderPuntos();renderOfertas();renderValle();bindAcciones(document);mostrar();
+  renderHoy();renderCobros();renderComprobantes();renderJug();renderPuntos();renderOfertas();renderValle();bindAcciones(document);mostrar();
 }
 pintarModo();pintarTodo();cargar();
 })();
